@@ -1,5 +1,5 @@
 {
-  "name": "@dipcoinlab/perp-client-ts",
+  "name": "dipcoin-cli",
   "version": "0.5.0",
   "description": "TypeScript SDK for DipCoin Perpetual Trading on Sui blockchain",
   "exports": {
@@ -13,6 +13,9 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "typings": "dist/index.d.ts",
+  "bin": {
+    "dipcoin-cli": "./dist/cli.cjs"
+  },
   "files": [
     "dist"
   ],
@@ -51,6 +54,7 @@
     "buffer": "^6.0.3",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
+    "dotenv": "^16.1.4",
     "fs": "^0.0.1-security",
     "path": "^0.12.7"
   },
@@ -60,7 +64,6 @@
     "@types/node": "^20.8.10",
     "@typescript-eslint/eslint-plugin": "^5.26.0",
     "@typescript-eslint/parser": "^5.26.0",
-    "dotenv": "^16.1.4",
     "eslint": "^8.16.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.0.0",

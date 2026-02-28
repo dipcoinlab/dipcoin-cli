@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Command } from "commander";
 import { registerAccountCommands } from "./commands/account";
 import { registerTradeCommands } from "./commands/trade";
@@ -11,7 +10,7 @@ import { registerBalanceCommand } from "./commands/balance";
 const program = new Command();
 
 program
-  .name("dipcoin")
+  .name("dipcoin-cli")
   .description("DipCoin Perpetual Trading CLI")
   .version("0.5.0")
   .option("--json", "Output in JSON format");

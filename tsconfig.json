@@ -8,13 +8,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "rootDir": "./src",
+    "rootDir": ".",
     "moduleResolution": "node",
     "declarationMap": true,
     "sourceMap": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "cli/**/*"],
   "exclude": ["node_modules", "dist", "test"]
 }
 
