@@ -218,7 +218,7 @@ function findPackageRoot(startDir: string): string | null {
     if (fs.existsSync(packageJsonPath)) {
       try {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-        if (packageJson.name === "@dipcoinlab/perp-client-ts") {
+        if (packageJson.name === "dipcoin-cli") {
           return currentDir;
         }
       } catch (e) {

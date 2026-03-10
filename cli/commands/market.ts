@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { getSDK } from "../utils/sdk-factory";
-import { isJson, printJson, printTable, handleError } from "../utils/output";
+import { isJson, printJson, printTable, handleError, normalizeSymbol } from "../utils/output";
 
 export function registerMarketCommands(program: Command) {
   const market = program.command("market").description("Market data");
@@ -31,6 +31,7 @@ export function registerMarketCommands(program: Command) {
     .argument("<symbol>", "Trading pair")
     .action(async (symbol) => {
       try {
+        symbol = normalizeSymbol(symbol);
         const sdk = getSDK();
         const result = await sdk.getTicker(symbol);
         if (!result.status || !result.data) return handleError(result.error);
@@ -62,6 +63,7 @@ export function registerMarketCommands(program: Command) {
     .argument("<symbol>", "Trading pair")
     .action(async (symbol) => {
       try {
+        symbol = normalizeSymbol(symbol);
         const sdk = getSDK();
         const result = await sdk.getOrderBook(symbol);
         if (!result.status || !result.data) return handleError(result.error);
@@ -89,6 +91,7 @@ export function registerMarketCommands(program: Command) {
     .argument("<symbol>", "Trading pair")
     .action(async (symbol) => {
       try {
+        symbol = normalizeSymbol(symbol);
         const sdk = getSDK();
         const result = await sdk.getOraclePrice(symbol);
         if (!result.status) return handleError(result.error);

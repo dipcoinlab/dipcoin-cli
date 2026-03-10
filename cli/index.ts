@@ -4,7 +4,8 @@ import { registerTradeCommands } from "./commands/trade";
 import { registerPositionCommands } from "./commands/position";
 import { registerMarketCommands } from "./commands/market";
 import { registerHistoryCommands } from "./commands/history";
-import { registerVaultCommands, registerOrdersCommand } from "./commands/vault";
+import { registerVaultCommands } from "./commands/vault";
+import { registerOrdersCommand } from "./commands/orders";
 import { registerSubAccountCommands } from "./commands/sub-account";
 import { registerBalanceCommand } from "./commands/balance";
 

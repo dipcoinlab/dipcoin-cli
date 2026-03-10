@@ -1,545 +1,360 @@
-# DipCoin Perpetual Trading SDK
+# DipCoin Perpetual Trading SDK & CLI
 
-TypeScript SDK for DipCoin Perpetual Trading on Sui blockchain.
+TypeScript SDK and CLI for perpetual futures trading on the Sui blockchain.
 
-## Table of Contents
+## Installation
 
-1. [Installation](#-installation)
-2. [Quick Start](#-quick-start)
-3. [Unified Demo Script](#-unified-demo-script)
-4. [Usage Guide](#-usage-guide)
-5. [Core Features](#core-features)
-6. [API Reference](#api-reference)
-7. [Examples](#examples)
-8. [License](#license)
-
-## 📦 Installation
+**CLI (global):**
 
 ```bash
-npm install @dipcoinlab/perp-client-ts
-# or
-yarn add @dipcoinlab/perp-client-ts
+npm install -g dipcoin-cli
 ```
 
-## 🚀 Quick Start
-
-### 1. Install Dependencies
+**SDK (as dependency):**
 
 ```bash
-npm install
+npm install dipcoin-cli
 ```
 
-### 2. Configure Environment
+## CLI Quick Start
 
-Create a `.env` file in the project root:
+### Configuration
+
+Create a `.env` file in your working directory (or at `~/.config/dipcoin/env` for global config):
 
 ```bash
 MNEMONIC=word1 word2 word3 ... word12
-NETWORK=testnet
+NETWORK=testnet    # or mainnet
 ```
 
-### 3. Run Example
+Index 0 of the HD derivation path is the main account. Use `--vault-index` for sub-accounts.
+
+### Basic Workflow
 
 ```bash
-npm run example
-# or
-RUN_LIMIT_ORDER=1 npm run example
+# Check available pairs
+dipcoin-cli market pairs
+
+# Get current price
+dipcoin-cli market ticker BTC
+
+# Check account balance
+dipcoin-cli account info
+
+# Open a long position: buy BTC with 100 USDC at 10x leverage
+dipcoin-cli trade buy BTC 100USDC 10x --tp 105000 --sl 90000
+
+# Monitor position
+dipcoin-cli position list
+
+# Close position (reduce-only sell)
+dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only
+
+# Review history
+dipcoin-cli history orders --symbol BTC-PERP
 ```
 
-This command executes the unified script at `examples/index.ts`.  
-Each trading action (deposits, withdrawals, order placement, margin edits, TP/SL flows, etc.) is disabled by default and can be opt‑in via environment flags. See [USAGE.md](./USAGE.md) for the complete flag matrix and safety notes.
+## CLI Commands
 
-## 🎯 Unified Demo Script
+### Global Options
 
-The legacy example files have been consolidated into `examples/index.ts`.  
-It executes a curated workflow in the following order:
+| Option | Description |
+|--------|-------------|
+| `--json` | Output in JSON format (machine-readable) |
+| `--vault-index <n>` | Use HD-derived sub-account at index N (placed before subcommand) |
+| `-V, --version` | Show version |
 
-1. Wallet setup & authentication (prints the derived wallet address and target network)
-2. Optional on-chain funding (deposit / withdraw) driven by `DEPOSIT_AMOUNT` and `WITHDRAW_AMOUNT`
-3. Account, position, and open-order snapshots for the primary `DEMO_SYMBOL`
-4. Market and limit order placement with optional post-placement cancellation
-5. Market data inspection (order book snapshot + ticker snapshot with spread calculations)
-6. Leverage & margin utilities, including preferred leverage adjustments and isolated margin add/remove flows
-7. TP/SL lifecycle management (create, list, edit, and cancel position-level TP/SL plans)
-
-All on-chain or order-creating steps are opt-in. Enable only the pieces you wish to test:
-
-| Flag | Purpose | Default |
-| --- | --- | --- |
-| `RUN_DEPOSIT` / `RUN_WITHDRAW` | Move funds between wallet & exchange | `0` |
-| `RUN_MARKET_ORDER` | Submit a market order | `0` |
-| `RUN_LIMIT_ORDER` | Submit a limit order (configure `LIMIT_ORDER_PRICE`) | `0` |
-| `RUN_CANCEL_ORDER` | Cancel the first open order | `0` |
-| `RUN_MARKET_DATA` | Print order book + ticker snapshots | `1` |
-| `RUN_ADJUST_LEVERAGE` | Update preferred leverage (off-chain) | `0` |
-| `RUN_MARGIN_ADD` / `RUN_MARGIN_REMOVE` | Add/remove isolated margin (on-chain) | `0` |
-| `RUN_TPSL_DEMO` | Create TP/SL orders for a position | `0` |
-| `RUN_TPSL_EDIT` | Edit existing TP/SL plans (needs plan IDs) | `0` |
-
-Additional tuning variables such as `DEPOSIT_AMOUNT`, `MARKET_ORDER_QTY`, `LIMIT_ORDER_SIDE`, `MARGIN_SYMBOL`, `TPSL_SYMBOL`, etc. mirror the names from the previous standalone scripts to remain backwards compatible.
-
-> Need a quick way to only inspect or update preferred leverage? Run `npm run example:leverage` (see `USAGE.md` for flags such as `SET_LEVERAGE`, `LEVERAGE_TARGET`, `LEVERAGE_SYMBOL`).
-
-### Script Flow Details
-
-Each major block inside `examples/index.ts` is wrapped in a helper such as `maybeDeposit`, `maybePlaceMarketOrder`, or `maybeRunTpSlFlow`.  
-Those helpers gate their logic behind the environment switches above, print labeled sections (via `logSection`), and provide success/error emojis so you can visually trace the execution in your terminal logs. The script also:
-
-- Fetches trading pairs and resolves the `perpId` automatically for the configured symbol (falls back to `sdk.getPerpetualID`).
-- Shows wallet/account diagnostics before any trading action so you can confirm balances and exposure.
-- Prints the top-of-book bids/asks plus percentage spread by using BigNumber math, making it easier to compare against the web UI.
-- Surfaces TP/SL plan IDs and hashes so that subsequent edits or cancellations can reuse real identifiers without manual API calls.
-
-### Environment Parameters
-
-Beyond the boolean toggles, the demo reads the following configuration values (all optional, shown with defaults from the script):
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `NETWORK` | `mainnet` or `testnet` selection passed to `initDipCoinPerpSDK`. | `testnet` |
-| `DEMO_SYMBOL` | Primary symbol inspected by the snapshots and trading actions. | `BTC-PERP` |
-| `PRIVATE_KEY` | Private key for signing transactions (required). | _none_ |
-| `DEPOSIT_AMOUNT` / `WITHDRAW_AMOUNT` | USDC amounts for bank transfers. | `10` / `5` |
-| `MARKET_ORDER_QTY`, `MARKET_ORDER_LEVERAGE`, `MARKET_ORDER_SIDE` | Market order size, leverage, and side (`BUY`/`SELL`). | `0.01`, `20`, `BUY` |
-| `LIMIT_ORDER_QTY`, `LIMIT_ORDER_PRICE`, `LIMIT_ORDER_LEVERAGE`, `LIMIT_ORDER_SIDE` | Limit order parameters. | `0.01`, `85000`, `20`, `BUY` |
-| `MARGIN_SYMBOL`, `MARGIN_ADD_AMOUNT`, `MARGIN_REMOVE_AMOUNT` | Target symbol and USDC sizes for margin utilities. | `DEMO_SYMBOL`, `10`, `5` |
-| `MARGIN_TARGET_LEVERAGE`, `MARGIN_TYPE` | Preferred leverage update payload. | `20`, `ISOLATED` |
-| `TPSL_SYMBOL`, `POSITION_ID` | Symbol/position used when fetching TP/SL plans (falls back to detected positions). | `DEMO_SYMBOL`, _auto-detected_ |
-| `TPSL_EDIT_TP_PLAN_ID`, `TPSL_EDIT_SL_PLAN_ID`, `TPSL_CANCEL_HASH` | Explicit plan IDs/hashes for TP/SL edit and cancel flows. | _auto-resolved when possible_ |
-
-Example: run just the limit-order workflow against ETH with a tighter size.
+### market
 
 ```bash
-DEMO_SYMBOL=ETH-PERP RUN_LIMIT_ORDER=1 LIMIT_ORDER_QTY=0.05 LIMIT_ORDER_PRICE=3800 npm run example
+dipcoin-cli market pairs                    # List all trading pairs
+dipcoin-cli market ticker <symbol>          # Ticker (price, volume, funding)
+dipcoin-cli market orderbook <symbol>       # Order book
+dipcoin-cli market oracle <symbol>          # Oracle price
 ```
 
-Because the script exits on authentication failure or missing `PRIVATE_KEY`, you can safely iterate by tweaking `.env` without risking partial executions. When testing on-chain actions, double-check gas budgets and balances before enabling their flags.
+Symbols auto-normalize: `BTC` becomes `BTC-PERP`.
 
-### Leverage Utility Recipes
-
-The demo exposes two leverage helpers:
-
-- `showPreferredLeverage` → calls `sdk.getUserConfig(symbol)` to fetch the current leverage, margin type, and raw on-chain value.
-- `maybeAdjustPreferredLeverage` → conditionally invokes `sdk.adjustLeverage(...)` when `RUN_ADJUST_LEVERAGE=1` (or `RUN_SET_LEVERAGE=1`) and prints the post-update config.
-
-Run the leverage inspection on its own:
+### account
 
 ```bash
-RUN_MARKET_DATA=0 RUN_ADJUST_LEVERAGE=0 npm run example
+dipcoin-cli account info                    # Balance, margin, PnL
+dipcoin-cli account info --vault <address>  # Info for specific vault address
+dipcoin-cli account deposit <amount>        # Deposit USDC to exchange
+dipcoin-cli account withdraw <amount>       # Withdraw USDC from exchange
 ```
 
-Update the preferred leverage for ETH perpetuals to 12x isolated:
+### balance
 
 ```bash
-MARGIN_SYMBOL=ETH-PERP RUN_ADJUST_LEVERAGE=1 MARGIN_TARGET_LEVERAGE=12 MARGIN_TYPE=ISOLATED npm run example
+dipcoin-cli balance                         # On-chain coin balances
 ```
 
-Behind the scenes the SDK sequence is:
+### trade
+
+```bash
+# Buy/Sell with USDC margin amount (auto-converts to quantity)
+dipcoin-cli trade buy <symbol> <amount> <leverage>
+dipcoin-cli trade sell <symbol> <amount> <leverage>
+
+# Limit order (auto-detected from --price)
+dipcoin-cli trade buy BTC 100USDC 10x --price 95000
+
+# With TP/SL
+dipcoin-cli trade buy BTC 100USDC 10x --tp 105000 --sl 90000
+
+# Explicit quantity instead of USDC margin
+dipcoin-cli trade buy BTC 100USDC 10x --qty 0.01
+
+# Reduce-only (for closing)
+dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only
+
+# Cancel orders
+dipcoin-cli trade cancel <symbol> <hash1> [hash2...]
+```
+
+**Trade Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--qty <quantity>` | Specify order quantity directly (amount arg ignored) |
+| `--price <p>` | Limit order price (auto-enables limit order type) |
+| `--reduce-only` | Reduce-only order |
+| `--tp <price>` | Take profit trigger price |
+| `--sl <price>` | Stop loss trigger price |
+| `--vault <address>` | Vault/creator address (fallback) |
+
+### position
+
+```bash
+dipcoin-cli position list                   # List open positions
+dipcoin-cli position list --symbol BTC-PERP # Filter by symbol
+
+# Set TP/SL on existing position
+dipcoin-cli position tpsl <symbol> --side <buy|sell> --quantity <q> --leverage <n> \
+  --tp-trigger <price> --sl-trigger <price>
+
+# TP/SL with limit type
+dipcoin-cli position tpsl <symbol> --side sell --quantity 0.01 --leverage 10 \
+  --tp-trigger 105000 --tp-type limit --tp-price 105000
+
+# Margin operations (on-chain)
+dipcoin-cli position margin add <symbol> <amount>
+dipcoin-cli position margin remove <symbol> <amount>
+```
+
+The `--side` is the **closing side**: use `sell` for long positions, `buy` for short.
+
+### orders
+
+```bash
+dipcoin-cli orders                          # List all open orders
+dipcoin-cli orders --symbol BTC-PERP        # Filter by symbol
+dipcoin-cli orders --vault <address>        # Filter by vault
+```
+
+### vault
+
+On-chain vault operations (DipCoin vault contracts):
+
+```bash
+dipcoin-cli vault create --name <name> --trader <address> --max-cap <usdc> \
+  --min-deposit <usdc> --creator-share <pct> --profit-share <pct> --initial <usdc>
+
+dipcoin-cli vault list                      # List vaults created by wallet
+dipcoin-cli vault info <vaultId>            # Vault details
+dipcoin-cli vault deposit <vaultId> <amount>
+dipcoin-cli vault withdraw <vaultId> <shares>
+dipcoin-cli vault fill <vaultId> <requestIDs...> [--markets <ids>]
+dipcoin-cli vault close <vaultId> [--markets <ids>]
+dipcoin-cli vault remove <vaultId>
+dipcoin-cli vault claim <vaultId>
+dipcoin-cli vault set-trader <vaultId> <address>
+dipcoin-cli vault set-sub-trader <vaultId> <address> [--disable]
+dipcoin-cli vault set-deposit-status <vaultId> [--disable]
+dipcoin-cli vault set-max-cap <vaultId> <amount>
+dipcoin-cli vault set-min-deposit <vaultId> <amount>
+dipcoin-cli vault set-auto-close <vaultId> [--disable]
+```
+
+### sub-account
+
+HD-derived sub-account management:
+
+```bash
+dipcoin-cli sub-account list [--count <n>]  # List derived addresses (default 5)
+dipcoin-cli sub-account setup <index>       # Derive and register sub-account on-chain
+dipcoin-cli sub-account set <subAddress>    # Authorize a sub-account address
+```
+
+### history
+
+```bash
+dipcoin-cli history orders [--symbol <s>] [--page <n>] [--size <n>]
+dipcoin-cli history funding [--symbol <s>] [--page <n>] [--size <n>]
+dipcoin-cli history balance [--page <n>] [--size <n>]
+```
+
+All history commands support `--vault <address>` and `--begin-time <ms>`.
+
+## Multi-Vault Workflow
+
+The CLI uses HD key derivation from your mnemonic. Index 0 is the main account, index 1+ are sub-accounts.
+
+```bash
+# List derived addresses
+dipcoin-cli sub-account list
+
+# Register sub-account 1 on-chain
+dipcoin-cli sub-account setup 1
+
+# Deposit to sub-account 1
+dipcoin-cli --vault-index 1 account deposit 100
+
+# Trade on sub-account 1
+dipcoin-cli --vault-index 1 trade buy BTC 50USDC 10x
+
+# Check sub-account 1 positions
+dipcoin-cli --vault-index 1 position list
+```
+
+`--vault-index` is always a **global option** placed before the subcommand.
+
+## SDK Usage
+
+### Initialize
 
 ```typescript
-const current = await sdk.getUserConfig("ETH-PERP");
-console.log("Current leverage:", current.data?.leverage);
-await sdk.adjustLeverage({ symbol: "ETH-PERP", leverage: "12", marginType: "ISOLATED" });
-```
-
-### TP/SL Utility Recipes
-
-`maybeRunTpSlFlow` orchestrates the entire lifecycle:
-
-1. Detect or fetch `POSITION_ID` for the configured `TPSL_SYMBOL`.
-2. Place TP/SL plans when `RUN_TPSL_DEMO=1` via `sdk.placePositionTpSlOrders`.
-3. Read back the plan list with `sdk.getPositionTpSl(positionId, "position")`.
-4. Edit existing plans when `RUN_TPSL_EDIT=1` and `TPSL_EDIT_TP_PLAN_ID` / `TPSL_EDIT_SL_PLAN_ID` are provided (or auto-detected).
-5. Cancel a specific plan by hash with `sdk.cancelTpSlOrders`.
-
-Minimal command to list current TP/SL plans for BTC and stop after the fetch:
-
-```bash
-RUN_TPSL_DEMO=0 RUN_TPSL_EDIT=0 TPSL_SYMBOL=BTC-PERP POSITION_ID=<position-id> npm run example
-```
-
-Demo new TP/SL orders on ETH using the auto-detected position and Perpetual ID:
-
-```bash
-TPSL_SYMBOL=ETH-PERP RUN_TPSL_DEMO=1 npm run example
-```
-
-Edit an existing TP plan and cancel another by hash:
-
-```bash
-RUN_TPSL_EDIT=1 TPSL_EDIT_TP_PLAN_ID=<plan-id> TPSL_CANCEL_HASH=<plan-hash> npm run example
-```
-
-These flows map directly to the SDK calls shown in the [Manage Existing Position TP/SL Orders](#manage-existing-position-tpsl-orders) section if you prefer to script them manually.
-
-## 📖 Usage Guide
-
-### Initialize SDK
-
-```typescript
-import { initDipCoinPerpSDK } from "@dipcoinlab/perp-client-ts";
-
-// Initialize with private key string
-const sdk = initDipCoinPerpSDK("your-private-key-string", {
-  network: "mainnet", // or "testnet"
-  apiBaseUrl: "https://api.dipcoin.io", // Optional, defaults based on network
-});
-
-// Or initialize with Keypair
+import { initDipCoinPerpSDK } from "dipcoin-cli";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-const keypair = Ed25519Keypair.fromSecretKey(/* your secret key */);
-const sdk = initDipCoinPerpSDK(keypair, {
-  network: "mainnet",
-});
+
+const keypair = Ed25519Keypair.deriveKeypair("your mnemonic phrase ...");
+const sdk = initDipCoinPerpSDK(keypair, { network: "mainnet" });
+
+// With sub-account for vault trading
+const subKeypair = Ed25519Keypair.deriveKeypair("your mnemonic", "m/44'/784'/1'/0'/0'");
+const vaultSdk = initDipCoinPerpSDK(keypair, { network: "mainnet", subAccountKey: subKeypair });
 ```
 
-## Core Features
-
-### Authentication (Onboarding)
-
-Before using the SDK, you need to authenticate first. The SDK will automatically handle authentication when you call any API method, but you can also authenticate manually:
+### Authentication
 
 ```typescript
-// Manual authentication
 const authResult = await sdk.authenticate();
 if (authResult.status) {
-  console.log("Authenticated! JWT Token:", authResult.data);
-} else {
-  console.error("Authentication failed:", authResult.error);
+  console.log("Authenticated:", authResult.data);
 }
 
-// Get JWT token (authenticates if needed)
-const tokenResult = await sdk.getJWTToken();
-if (tokenResult.status) {
-  console.log("JWT Token:", tokenResult.data);
-}
-
-// Force refresh token
-const refreshResult = await sdk.getJWTToken(true);
-
-// Clear authentication (logout)
-sdk.clearAuth();
+// All API methods auto-authenticate when needed
 ```
 
-**Note:** All API methods automatically authenticate if needed, so you don't need to call `authenticate()` manually in most cases.
-
-### Account Information
-
-Get account balance and trading information:
+### Account Info
 
 ```typescript
-const accountInfo = await sdk.getAccountInfo();
-
-if (accountInfo.status && accountInfo.data) {
-  console.log("Wallet Balance:", accountInfo.data.walletBalance);
-  console.log("Account Value:", accountInfo.data.accountValue);
-  console.log("Free Collateral:", accountInfo.data.freeCollateral);
-  console.log("Unrealized PnL:", accountInfo.data.totalUnrealizedProfit);
+const info = await sdk.getAccountInfo();
+if (info.status && info.data) {
+  console.log("Balance:", info.data.walletBalance);
+  console.log("Free Collateral:", info.data.freeCollateral);
 }
 ```
 
-### Deposit and Withdraw
-
-Deposit USDC to the exchange bank account for trading collateral, or withdraw USDC back to your wallet:
+### Deposit & Withdraw
 
 ```typescript
-// Deposit USDC to bank (deposit funds for trading)
-const depositResult = await sdk.depositToBank(100); // Deposit 100 USDC
-if (depositResult) {
-  console.log("Deposit successful!");
-}
-
-// Withdraw USDC from bank (withdraw funds to wallet)
-const withdrawResult = await sdk.withdrawFromBank(50); // Withdraw 50 USDC
-if (withdrawResult) {
-  console.log("Withdraw successful!");
-}
+// On-chain transactions (USDC to/from exchange)
+await sdk.depositToBank(100);    // 100 USDC
+await sdk.withdrawFromBank(50);  // 50 USDC
 ```
-
-**Note:** These methods execute on-chain transactions on Sui blockchain. Make sure you have sufficient USDC balance in your wallet before depositing, and sufficient balance in your exchange account before withdrawing.
-
-### Adjust Preferred Leverage
-
-Match the web client's leverage settings through the same REST API:
-
-```typescript
-await sdk.adjustLeverage({
-  symbol: "BTC-PERP",
-  leverage: "5", // 5x leverage
-  marginType: "ISOLATED", // optional, defaults to ISOLATED
-});
-```
-
-### Add or Remove Position Margin (On-chain)
-
-Interact with the on-chain contracts to add or remove isolated margin. These actions spend gas and require sufficient balances.
-
-```typescript
-// Add 2 USDC margin to BTC-PERP
-await sdk.addMargin({
-  amount: 2,
-  symbol: "BTC-PERP",
-});
-
-// Remove 1 USDC margin from BTC-PERP
-await sdk.removeMargin({
-  amount: 1,
-  symbol: "BTC-PERP",
-});
-```
-
-> ⚠️ Margin operations are on-chain transactions. Double-check the amount and symbol before running them.
 
 ### Place Order
 
-Place a market or limit order:
-
 ```typescript
-import { OrderSide, OrderType } from "@dipcoinlab/perp-client-ts";
+import { OrderSide, OrderType } from "dipcoin-cli";
 
 // Market order
 const result = await sdk.placeOrder({
   symbol: "BTC-PERP",
   side: OrderSide.BUY,
   orderType: OrderType.MARKET,
-  quantity: "0.1", // 0.1 BTC
-  leverage: "10", // 10x leverage
+  quantity: "0.1",
+  leverage: "10",
 });
 
 // Limit order
-const limitResult = await sdk.placeOrder({
+const limit = await sdk.placeOrder({
   symbol: "BTC-PERP",
   side: OrderSide.BUY,
   orderType: OrderType.LIMIT,
   quantity: "0.1",
-  price: "50000", // Limit price
+  price: "95000",
   leverage: "10",
-  reduceOnly: false, // Optional: only reduce position
 });
 
-if (result.status) {
-  console.log("Order placed successfully:", result.data);
-} else {
-  console.error("Order failed:", result.error);
-}
-```
-
-### Place Order with TP/SL
-
-Place an order with take profit and stop loss:
-
-```typescript
-const result = await sdk.placeOrder({
+// With TP/SL
+const withTpSl = await sdk.placeOrder({
   symbol: "BTC-PERP",
   side: OrderSide.BUY,
   orderType: OrderType.MARKET,
   quantity: "0.1",
   leverage: "10",
-  // Take profit
-  tpTriggerPrice: "55000",
-  tpOrderType: OrderType.MARKET,
-  // Stop loss
-  slTriggerPrice: "45000",
-  slOrderType: OrderType.MARKET,
+  tpTriggerPrice: "105000",
+  slTriggerPrice: "90000",
 });
 ```
 
-### Manage Existing Position TP/SL Orders
+### Position TP/SL
 
 ```typescript
 await sdk.placePositionTpSlOrders({
   symbol: "BTC-PERP",
   market: "<perpetual-id>",
   side: OrderSide.SELL,
-  isLong: false,
+  isLong: true,
   leverage: "10",
-  quantity: "0.05",
-  tp: {
-    triggerPrice: "90000",
-    orderType: OrderType.LIMIT,
-    orderPrice: "90000",
-    tpslType: "position",
-  },
-  sl: {
-    triggerPrice: "70000",
-    orderType: OrderType.MARKET,
-    tpslType: "position",
-  },
-});
-
-const tpSlOrders = await sdk.getPositionTpSl("<position-id>", "position");
-
-await sdk.cancelTpSlOrders({
-  symbol: "BTC-PERP",
-  orderHashes: ["0xabc..."],
+  quantity: "0.1",
+  tp: { triggerPrice: "105000", orderType: OrderType.MARKET, tpslType: "position" },
+  sl: { triggerPrice: "90000", orderType: OrderType.MARKET, tpslType: "position" },
 });
 ```
 
-### Market Data (Ticker & Order Book)
+### Market Data
 
 ```typescript
 const ticker = await sdk.getTicker("BTC-PERP");
 const orderBook = await sdk.getOrderBook("BTC-PERP");
+const oraclePrice = await sdk.getOraclePrice("BTC-PERP");
+const pairs = await sdk.getTradingPairs();
 ```
 
 ### Cancel Order
 
-Cancel one or more orders:
-
 ```typescript
-const result = await sdk.cancelOrder({
+await sdk.cancelOrder({
   symbol: "BTC-PERP",
-  orderHashes: ["0x1234...", "0x5678..."], // Array of order hashes
+  orderHashes: ["0x1234..."],
 });
-
-if (result.status) {
-  console.log("Orders cancelled successfully");
-} else {
-  console.error("Cancel failed:", result.error);
-}
 ```
 
-### Get Positions
-
-Get current positions:
+### Positions & Open Orders
 
 ```typescript
-// Get all positions
 const positions = await sdk.getPositions();
-
-// Get positions for specific symbol
-const btcPositions = await sdk.getPositions("BTC-PERP");
-
-if (positions.status && positions.data) {
-  positions.data.forEach((position) => {
-    console.log("Symbol:", position.symbol);
-    console.log("Side:", position.side);
-    console.log("Quantity:", position.quantity);
-    console.log("Entry Price:", position.avgEntryPrice);
-    console.log("Unrealized PnL:", position.unrealizedProfit);
-    console.log("Liquidation Price:", position.liquidationPrice);
-  });
-}
+const orders = await sdk.getOpenOrders();
 ```
 
-### Get Open Orders
-
-Get current open orders:
+### Leverage & Margin
 
 ```typescript
-// Get all open orders
-const orders = await sdk.getOpenOrders();
-
-// Get open orders for specific symbol
-const btcOrders = await sdk.getOpenOrders("BTC-PERP");
-
-if (orders.status && orders.data) {
-  orders.data.forEach((order) => {
-    console.log("Symbol:", order.symbol);
-    console.log("Side:", order.side);
-    console.log("Type:", order.orderType);
-    console.log("Price:", order.price);
-    console.log("Quantity:", order.quantity);
-    console.log("Filled:", order.filledQty);
-  });
-}
+await sdk.adjustLeverage({ symbol: "BTC-PERP", leverage: "10", marginType: "ISOLATED" });
+await sdk.addMargin({ symbol: "BTC-PERP", amount: 5 });
+await sdk.removeMargin({ symbol: "BTC-PERP", amount: 2 });
 ```
-
-## API Reference
-
-### DipCoinPerpSDK
-
-Main SDK class for interacting with DipCoin Perpetual Trading.
-
-#### Methods
-
-##### `placeOrder(params: PlaceOrderParams): Promise<SDKResponse<OrderResponse>>`
-
-Place a new order.
-
-**Parameters:**
-- `symbol`: Trading symbol (e.g., "BTC-PERP")
-- `side`: Order side (`OrderSide.BUY` or `OrderSide.SELL`)
-- `orderType`: Order type (`OrderType.MARKET` or `OrderType.LIMIT`)
-- `quantity`: Order quantity (number or string)
-- `price`: Order price (required for LIMIT orders)
-- `leverage`: Leverage multiplier (number or string)
-- `market`: Optional market ID
-- `reduceOnly`: Optional, only reduce position
-- `clientId`: Optional client order ID
-- `tpTriggerPrice`: Optional take profit trigger price
-- `tpOrderType`: Optional take profit order type
-- `tpOrderPrice`: Optional take profit order price
-- `slTriggerPrice`: Optional stop loss trigger price
-- `slOrderType`: Optional stop loss order type
-- `slOrderPrice`: Optional stop loss order price
-
-##### `cancelOrder(params: CancelOrderParams): Promise<SDKResponse<OrderResponse>>`
-
-Cancel one or more orders.
-
-**Parameters:**
-- `symbol`: Trading symbol
-- `orderHashes`: Array of order hashes to cancel
-- `parentAddress`: Optional parent address (defaults to wallet address)
-
-##### `getAccountInfo(): Promise<SDKResponse<AccountInfo>>`
-
-Get account information including balance, collateral, and PnL.
-
-##### `getPositions(symbol?: string): Promise<SDKResponse<Position[]>>`
-
-Get current positions. Optionally filter by symbol.
-
-##### `getOpenOrders(symbol?: string): Promise<SDKResponse<OpenOrder[]>>`
-
-Get current open orders. Optionally filter by symbol.
-
-##### `depositToBank(amount: number): Promise<any>`
-
-Deposit USDC from wallet to exchange bank account for trading collateral.
-
-**Parameters:**
-- `amount`: Deposit amount in USDC (standard units, e.g., 100 means 100 USDC)
-
-**Returns:** On-chain transaction result
-
-**Note:** This is an on-chain transaction on Sui blockchain. Ensure you have sufficient USDC balance in your wallet.
-
-##### `withdrawFromBank(amount: number): Promise<any>`
-
-Withdraw USDC from exchange bank account back to wallet.
-
-**Parameters:**
-- `amount`: Withdraw amount in USDC (standard units, e.g., 50 means 50 USDC)
-
-**Returns:** On-chain transaction result
-
-**Note:** This is an on-chain transaction on Sui blockchain. Ensure you have sufficient balance in your exchange account.
 
 ## Types
 
-### OrderSide
-
 ```typescript
-enum OrderSide {
-  BUY = "BUY",
-  SELL = "SELL",
-}
-```
+enum OrderSide { BUY = "BUY", SELL = "SELL" }
+enum OrderType { MARKET = "MARKET", LIMIT = "LIMIT" }
 
-### OrderType
-
-```typescript
-enum OrderType {
-  MARKET = "MARKET",
-  LIMIT = "LIMIT",
-}
-```
-
-### AccountInfo
-
-```typescript
 interface AccountInfo {
   walletBalance: string;
   totalUnrealizedProfit: string;
@@ -547,190 +362,46 @@ interface AccountInfo {
   freeCollateral: string;
   totalMargin: string;
 }
-```
 
-### Position
-
-```typescript
 interface Position {
-  symbol: string;
-  side: string;
-  quantity: string;
-  avgEntryPrice: string;
-  leverage: string;
-  margin: string;
-  unrealizedProfit: string;
-  liquidationPrice: string;
-  // ... more fields
+  symbol: string; side: string; quantity: string;
+  avgEntryPrice: string; leverage: string; margin: string;
+  unrealizedProfit: string; liquidationPrice: string;
 }
-```
 
-### OpenOrder
-
-```typescript
 interface OpenOrder {
-  hash: string;
-  symbol: string;
-  side: string;
-  orderType: string;
-  price: string;
-  quantity: string;
-  filledQty: string;
-  leverage: string;
-  status: string;
-  // ... more fields
+  hash: string; symbol: string; side: string;
+  orderType: string; price: string; quantity: string;
+  filledQty: string; leverage: string; status: string;
+}
+
+interface SDKResponse<T> {
+  status: boolean;
+  data?: T;
+  error?: string;
 }
 ```
 
 ## Error Handling
 
-All SDK methods return a `SDKResponse` object with the following structure:
-
-```typescript
-interface SDKResponse<T> {
-  status: boolean; // Operation success status
-  data?: T; // Response data if successful
-  error?: string; // Error message if failed
-}
-```
-
-Always check the `status` field before accessing `data`:
+All SDK methods return `SDKResponse<T>`. Check `status` before accessing `data`:
 
 ```typescript
 const result = await sdk.placeOrder(/* ... */);
-
 if (result.status) {
-  // Success - use result.data
   console.log(result.data);
 } else {
-  // Error - use result.error
   console.error(result.error);
 }
 ```
 
-## Examples
+## Development
 
-### Complete Trading Flow
-
-```typescript
-import { initDipCoinPerpSDK, OrderSide, OrderType } from "@dipcoinlab/perp-client-ts";
-
-// Initialize SDK
-const sdk = initDipCoinPerpSDK("your-private-key", {
-  network: "testnet",
-});
-
-async function tradingFlow() {
-  // 1. Deposit funds to exchange bank account
-  console.log("Depositing 100 USDC to bank...");
-  await sdk.depositToBank(100);
-
-  // 2. Check account balance
-  const account = await sdk.getAccountInfo();
-  if (account.status) {
-    console.log("Account Value:", account.data?.accountValue);
-  }
-
-  // 3. Check existing positions
-  const positions = await sdk.getPositions();
-  if (positions.status) {
-    console.log("Current Positions:", positions.data);
-  }
-
-  // 4. Place a market order
-  const orderResult = await sdk.placeOrder({
-    symbol: "BTC-PERP",
-    side: OrderSide.BUY,
-    orderType: OrderType.MARKET,
-    quantity: "0.1",
-    leverage: "10",
-  });
-
-  if (orderResult.status) {
-    console.log("Order placed:", orderResult.data);
-  }
-
-  // 5. Adjust preferred leverage for BTC perpetuals
-  const leverageUpdate = await sdk.adjustLeverage({
-    symbol: "BTC-PERP",
-    leverage: "12",
-    marginType: "ISOLATED",
-  });
-
-  if (leverageUpdate.status) {
-    console.log("Leverage updated:", leverageUpdate.data);
-  } else {
-    console.warn("Leverage update failed:", leverageUpdate.error);
-  }
-
-  // 6. Create and manage TP/SL plans for the active BTC position
-  const tpSlResult = await sdk.placePositionTpSlOrders({
-    symbol: "BTC-PERP",
-    side: OrderSide.SELL,
-    isLong: true,
-    leverage: "10",
-    quantity: "0.1",
-    tp: {
-      triggerPrice: "55000",
-      orderType: OrderType.LIMIT,
-      orderPrice: "55000",
-      tpslType: "position",
-    },
-    sl: {
-      triggerPrice: "45000",
-      orderType: OrderType.MARKET,
-      tpslType: "position",
-    },
-  });
-
-  if (tpSlResult.status) {
-    console.log("TP/SL plans placed:", tpSlResult.data);
-    const positionId = tpSlResult.data?.positionId ?? "<position-id>";
-    const plans = await sdk.getPositionTpSl(positionId, "position");
-
-    if (plans.status) {
-      console.log("Current TP/SL plans:", plans.data);
-
-      if (plans.data && plans.data.length > 0) {
-        const cancelTpSl = await sdk.cancelTpSlOrders({
-          symbol: "BTC-PERP",
-          orderHashes: [plans.data[0].hash],
-        });
-        console.log("Cancelled TP/SL plan:", cancelTpSl);
-      }
-    }
-  } else {
-    console.warn("TP/SL placement failed:", tpSlResult.error);
-  }
-
-  // 7. Check open orders
-  const openOrders = await sdk.getOpenOrders("BTC-PERP");
-  if (openOrders.status) {
-    console.log("Open Orders:", openOrders.data);
-  }
-
-  // 8. Cancel an order (if needed)
-  if (openOrders.status && openOrders.data && openOrders.data.length > 0) {
-    const cancelResult = await sdk.cancelOrder({
-      symbol: "BTC-PERP",
-      orderHashes: [openOrders.data[0].hash],
-    });
-    console.log("Cancel result:", cancelResult);
-  }
-
-  // 9. Withdraw funds from exchange bank account
-  console.log("Withdrawing 50 USDC from bank...");
-  await sdk.withdrawFromBank(50);
-
-  
-}
-
-tradingFlow();
+```bash
+npm run cli              # Run CLI in dev mode (tsx)
+npm run build            # Build for distribution
+npm run example          # Run example script
 ```
-
-### Example Scripts
-
-- `npm run example` – Runs `examples/index.ts`. Enable extra steps with env flags such as `RUN_LIMIT_ORDER=1`, `RUN_MARGIN_ADD=1`, `RUN_TPSL_DEMO=1`, etc.
 
 ## License
 

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { getSDK, resolveVaultAddress } from "../utils/sdk-factory";
 import { getGlobalVaultIndex } from "../utils/vault-index";
-import { isJson, printJson, handleError } from "../utils/output";
+import { isJson, printJson, handleError, normalizeSymbol } from "../utils/output";
 import { OrderSide, OrderType } from "../../src";
 
 /**
@@ -32,8 +32,7 @@ async function placeOrder(program: Command, side: OrderSide, symbol: string, amo
     const lev = parseLeverage(leverage);
     const orderType = opts.price ? OrderType.LIMIT : OrderType.MARKET;
 
-    // Normalize symbol: "BTC" -> "BTC-PERP"
-    if (!symbol.includes("-")) symbol = `${symbol}-PERP`;
+    symbol = normalizeSymbol(symbol);
 
     let quantity: string;
 
@@ -148,6 +147,7 @@ export function registerTradeCommands(program: Command) {
     .option("--vault <address>", "Parent address")
     .action(async (symbol, hashes, opts) => {
       try {
+        symbol = normalizeSymbol(symbol);
         const vaultIndex = getGlobalVaultIndex(program);
         const sdk = getSDK(vaultIndex);
         const parentAddress = opts.vault || resolveVaultAddress(vaultIndex) || sdk.address;

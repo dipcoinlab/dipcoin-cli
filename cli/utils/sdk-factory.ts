@@ -114,6 +114,14 @@ export function listVaultAddresses(count: number): { index: number; address: str
   return results;
 }
 
+/**
+ * Get the appropriate SDK for on-chain operations (deposit/withdraw/margin).
+ * Uses the vault's own keypair when vault-index > 0, otherwise main account.
+ */
+export function getOnChainSDK(vaultIndex?: number): DipCoinPerpSDK {
+  return (vaultIndex !== undefined && vaultIndex > 0) ? getVaultSDK(vaultIndex) : getSDK();
+}
+
 export async function ensureAuth(sdk: DipCoinPerpSDK): Promise<void> {
   const auth = await sdk.authenticate();
   if (!auth.status) {

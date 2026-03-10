@@ -1,24 +1,9 @@
 import { Command } from "commander";
-import { getSDK, resolveVaultAddress } from "../utils/sdk-factory";
-import { getGlobalVaultIndex } from "../utils/vault-index";
-import { isJson, printJson, printTable, handleError, formatWei } from "../utils/output";
+import { getSDK } from "../utils/sdk-factory";
+import { isJson, printJson, printTable, handleError, printTxResult as printTxResultShared } from "../utils/output";
 import BigNumber from "bignumber.js";
 
 const USDC_DECIMALS = 6;
-
-/**
- * Print transaction result with standard format.
- */
-function printTxResult(program: Command, tx: any, successMsg: string) {
-  const status = tx?.effects?.status?.status;
-  const error = tx?.effects?.status?.error;
-  if (isJson(program)) return printJson({ digest: tx?.digest, status, error });
-  if (status === "failure") {
-    console.error(`Failed: ${error}`);
-    process.exit(1);
-  }
-  console.log(`${successMsg} Tx: ${tx?.digest}`);
-}
 
 /**
  * Format a USDC atomic value (6 decimals) to human-readable.
@@ -77,7 +62,7 @@ export function registerVaultCommands(program: Command) {
           creatorProfitShareRatio: percentToRatio(opts.profitShare),
           initialAmount: Number(opts.initial),
         });
-        printTxResult(program, tx, `Vault "${opts.name}" created.`);
+        printTxResultShared(program, tx, `Vault "${opts.name}" created.`);
       } catch (e) {
         handleError(e);
       }
@@ -158,7 +143,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         console.log(`Depositing ${amount} USDC to vault ${vaultId}...`);
         const tx = await sdk.depositToVault({ vaultID: vaultId, amount: Number(amount) });
-        printTxResult(program, tx, `Deposited ${amount} USDC.`);
+        printTxResultShared(program, tx, `Deposited ${amount} USDC.`);
       } catch (e) {
         handleError(e);
       }
@@ -175,7 +160,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         console.log(`Requesting withdrawal of ${shares} shares from vault ${vaultId}...`);
         const tx = await sdk.requestWithdrawFromVault({ vaultID: vaultId, shares: Number(shares) });
-        printTxResult(program, tx, `Withdrawal request submitted for ${shares} shares.`);
+        printTxResultShared(program, tx, `Withdrawal request submitted for ${shares} shares.`);
       } catch (e) {
         handleError(e);
       }
@@ -198,7 +183,7 @@ export function registerVaultCommands(program: Command) {
           withdrawalRequestIDs: requestIDs,
           markets,
         });
-        printTxResult(program, tx, `Filled ${requestIDs.length} withdrawal request(s).`);
+        printTxResultShared(program, tx, `Filled ${requestIDs.length} withdrawal request(s).`);
       } catch (e) {
         handleError(e);
       }
@@ -216,7 +201,7 @@ export function registerVaultCommands(program: Command) {
         const markets = opts.markets ? opts.markets.split(",") : undefined;
         console.log(`Closing vault ${vaultId}...`);
         const tx = await sdk.closeVault({ vaultID: vaultId, markets });
-        printTxResult(program, tx, "Vault closed.");
+        printTxResultShared(program, tx, "Vault closed.");
       } catch (e) {
         handleError(e);
       }
@@ -232,7 +217,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         console.log(`Removing vault ${vaultId}...`);
         const tx = await sdk.removeVault({ vaultID: vaultId });
-        printTxResult(program, tx, "Vault removed.");
+        printTxResultShared(program, tx, "Vault removed.");
       } catch (e) {
         handleError(e);
       }
@@ -248,7 +233,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         console.log(`Claiming funds from vault ${vaultId}...`);
         const tx = await sdk.claimClosedVaultFunds({ vaultID: vaultId });
-        printTxResult(program, tx, "Funds claimed.");
+        printTxResultShared(program, tx, "Funds claimed.");
       } catch (e) {
         handleError(e);
       }
@@ -264,7 +249,7 @@ export function registerVaultCommands(program: Command) {
       try {
         const sdk = getSDK();
         const tx = await sdk.setVaultTrader({ vaultID: vaultId, newTrader: address });
-        printTxResult(program, tx, `Trader set to ${address}.`);
+        printTxResultShared(program, tx, `Trader set to ${address}.`);
       } catch (e) {
         handleError(e);
       }
@@ -282,7 +267,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         const status = !opts.disable;
         const tx = await sdk.setVaultSubTrader({ vaultID: vaultId, subTrader: address, status });
-        printTxResult(program, tx, `Sub-trader ${address} ${status ? "added" : "removed"}.`);
+        printTxResultShared(program, tx, `Sub-trader ${address} ${status ? "added" : "removed"}.`);
       } catch (e) {
         handleError(e);
       }
@@ -299,7 +284,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         const status = !opts.disable;
         const tx = await sdk.setVaultDepositStatus({ vaultID: vaultId, status });
-        printTxResult(program, tx, `Deposits ${status ? "enabled" : "disabled"}.`);
+        printTxResultShared(program, tx, `Deposits ${status ? "enabled" : "disabled"}.`);
       } catch (e) {
         handleError(e);
       }
@@ -315,7 +300,7 @@ export function registerVaultCommands(program: Command) {
       try {
         const sdk = getSDK();
         const tx = await sdk.setVaultMaxCap({ vaultID: vaultId, maxCap: Number(amount) });
-        printTxResult(program, tx, `Max cap set to ${amount} USDC.`);
+        printTxResultShared(program, tx, `Max cap set to ${amount} USDC.`);
       } catch (e) {
         handleError(e);
       }
@@ -331,7 +316,7 @@ export function registerVaultCommands(program: Command) {
       try {
         const sdk = getSDK();
         const tx = await sdk.setVaultMinDepositAmount({ vaultID: vaultId, minDepositAmount: Number(amount) });
-        printTxResult(program, tx, `Min deposit set to ${amount} USDC.`);
+        printTxResultShared(program, tx, `Min deposit set to ${amount} USDC.`);
       } catch (e) {
         handleError(e);
       }
@@ -348,48 +333,7 @@ export function registerVaultCommands(program: Command) {
         const sdk = getSDK();
         const enabled = !opts.disable;
         const tx = await sdk.setVaultAutoCloseOnWithdraw({ vaultID: vaultId, autoCloseOnWithdraw: enabled });
-        printTxResult(program, tx, `Auto-close on withdraw ${enabled ? "enabled" : "disabled"}.`);
-      } catch (e) {
-        handleError(e);
-      }
-    });
-}
-
-export function registerOrdersCommand(program: Command) {
-  program
-    .command("orders")
-    .description("List open orders")
-    .option("--symbol <s>", "Filter by symbol")
-    .option("--vault <address>", "Vault address")
-    .action(async (opts) => {
-      try {
-        const vaultIndex = getGlobalVaultIndex(program);
-        const sdk = getSDK(vaultIndex);
-        const vault = opts.vault || resolveVaultAddress(vaultIndex) || sdk.address;
-        const params: any = {
-          parentAddress: vault,
-          ...(opts.symbol ? { symbol: opts.symbol } : {}),
-        };
-        const result = await sdk.getOpenOrders(params as any);
-        if (!result.status) return handleError(result.error);
-
-        if (isJson(program)) return printJson(result.data);
-
-        if (!result.data?.length) return console.log("No open orders.");
-
-        printTable(
-          ["Hash", "Symbol", "Side", "Type", "Qty", "Price", "Leverage", "Status"],
-          result.data.map((o) => [
-            o.hash.slice(0, 12) + "...",
-            o.symbol,
-            o.side,
-            o.orderType,
-            formatWei(o.quantity),
-            formatWei(o.price),
-            formatWei(o.leverage) + "x",
-            o.status,
-          ])
-        );
+        printTxResultShared(program, tx, `Auto-close on withdraw ${enabled ? "enabled" : "disabled"}.`);
       } catch (e) {
         handleError(e);
       }

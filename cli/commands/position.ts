@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { getSDK, getVaultSDK, resolveVaultAddress } from "../utils/sdk-factory";
+import { getSDK, getOnChainSDK, resolveVaultAddress } from "../utils/sdk-factory";
 import { getGlobalVaultIndex } from "../utils/vault-index";
-import { isJson, printJson, printTable, handleError, formatWei } from "../utils/output";
+import { isJson, printJson, printTable, handleError, formatWei, normalizeSymbol } from "../utils/output";
 import { OrderSide, OrderType } from "../../src";
 
 export function registerPositionCommands(program: Command) {
@@ -62,6 +62,7 @@ export function registerPositionCommands(program: Command) {
     .action(async (symbol, opts) => {
       try {
         const sdk = getSDK();
+        symbol = normalizeSymbol(symbol);
         const perpId = await sdk.getPerpetualID(symbol);
         if (!perpId) return handleError(`PerpetualID not found for ${symbol}`);
 
@@ -114,9 +115,7 @@ export function registerPositionCommands(program: Command) {
     .action(async (symbol, amount) => {
       try {
         const vaultIndex = getGlobalVaultIndex(program);
-        const sdk = vaultIndex !== undefined && vaultIndex > 0
-          ? getVaultSDK(vaultIndex)
-          : getSDK();
+        const sdk = getOnChainSDK(vaultIndex);
         const tx = await sdk.addMargin({ symbol, amount: Number(amount) });
         if (isJson(program)) return printJson({ digest: tx?.digest, status: "ok" });
         console.log(`Added ${amount} margin to ${symbol}. Tx: ${tx?.digest || JSON.stringify(tx)}`);
@@ -133,9 +132,7 @@ export function registerPositionCommands(program: Command) {
     .action(async (symbol, amount) => {
       try {
         const vaultIndex = getGlobalVaultIndex(program);
-        const sdk = vaultIndex !== undefined && vaultIndex > 0
-          ? getVaultSDK(vaultIndex)
-          : getSDK();
+        const sdk = getOnChainSDK(vaultIndex);
         const tx = await sdk.removeMargin({ symbol, amount: Number(amount) });
         if (isJson(program)) return printJson({ digest: tx?.digest, status: "ok" });
         console.log(`Removed ${amount} margin from ${symbol}. Tx: ${tx?.digest || JSON.stringify(tx)}`);

@@ -20,13 +20,13 @@ You should see the help output listing available commands. If you see errors, en
 
 ## Configuration
 
-The CLI reads configuration from a `.env` file in the current working directory.
+The CLI reads configuration from a `.env` file in the current working directory, or from `~/.config/dipcoin/env`.
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MNEMONIC` | **Yes** | 12-word mnemonic phrase for HD key derivation. Index 0 = main account, index 1+ = vault sub-accounts |
+| `MNEMONIC` | **Yes** | 12-word mnemonic phrase for HD key derivation. Index 0 = main account, index 1+ = sub-accounts |
 | `NETWORK` | **Yes** | `mainnet` or `testnet` (default: `testnet`) |
 | `DEFAULT_VAULT_INDEX` | No | Default vault index for HD-derived sub-accounts |
 
@@ -49,13 +49,15 @@ If successful, you will see the account's wallet balance, account value, and mar
 
 ## Usage
 
-**IMPORTANT:** Always run commands from the project directory and always append `--json` to get machine-readable JSON output for parsing.
+**IMPORTANT:** Always append `--json` to get machine-readable JSON output for parsing.
 
 Base command pattern:
 
 ```bash
-dipcoin-cli <command> [options] --json
+dipcoin-cli [--vault-index <n>] <command> [subcommand] [args] [options] --json
 ```
+
+`--vault-index` is a **global option** and must be placed **before** the subcommand.
 
 ---
 
@@ -75,6 +77,8 @@ dipcoin-cli market orderbook <symbol> --json
 dipcoin-cli market oracle <symbol> --json
 ```
 
+Symbols auto-normalize: `BTC` becomes `BTC-PERP`.
+
 ### Account
 
 ```bash
@@ -85,15 +89,15 @@ dipcoin-cli account info --json
 dipcoin-cli account info --vault <address> --json
 dipcoin-cli --vault-index 1 account info --json
 
-# View on-chain wallet coin balances (main or vault)
+# View on-chain wallet coin balances (main or sub-account)
 dipcoin-cli balance --json
 dipcoin-cli --vault-index 1 balance --json
 
-# Deposit USDC to exchange (main account or vault)
+# Deposit USDC to exchange (main account or sub-account)
 dipcoin-cli account deposit <amount> --json
 dipcoin-cli --vault-index 1 account deposit <amount> --json
 
-# Withdraw USDC from exchange (main account or vault)
+# Withdraw USDC from exchange (main account or sub-account)
 dipcoin-cli account withdraw <amount> --json
 dipcoin-cli --vault-index 1 account withdraw <amount> --json
 ```
@@ -103,13 +107,13 @@ dipcoin-cli --vault-index 1 account withdraw <amount> --json
 ```bash
 # Place a BUY market order with USDC margin (default mode)
 dipcoin-cli trade buy BTC 100USDC 10x --json
-dipcoin-cli trade buy BTC-PERP 100 10 --json    # same as above ("USDC" and "x" suffixes are optional)
+dipcoin-cli trade buy BTC-PERP 100 10 --json    # same ("USDC" and "x" suffixes are optional)
 
 # Place a SELL market order
 dipcoin-cli trade sell ETH 50USDC 5x --json
 
-# Place a LIMIT order
-dipcoin-cli trade buy BTC 100USDC 10x --type limit --price 95000 --json
+# Place a LIMIT order (--price auto-enables limit type, no --type flag needed)
+dipcoin-cli trade buy BTC 100USDC 10x --price 95000 --json
 
 # Place order with take profit and/or stop loss
 dipcoin-cli trade buy BTC 100USDC 10x --tp 105000 --sl 90000 --json
@@ -137,14 +141,13 @@ dipcoin-cli trade cancel <symbol> <hash1> [hash2...] --json
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--qty <quantity>` | Specify order quantity instead of USDC margin | - |
-| `--price <p>` | Limit order price (required for limit orders) | - |
-| `--type <type>` | `market` or `limit` | market |
+| `--price <p>` | Limit order price (auto-enables limit order type) | - |
 | `--reduce-only` | Reduce-only order flag | false |
 | `--tp <price>` | Take profit trigger price | - |
 | `--sl <price>` | Stop loss trigger price | - |
 | `--vault <address>` | Vault/creator address | - |
 
-**Note:** By default, `<amount>` is USDC margin. Use `--qty` to specify quantity directly (amount argument is ignored when `--qty` is set).
+**Note:** By default, `<amount>` is USDC margin. Use `--qty` to specify quantity directly (amount argument is ignored when `--qty` is set). Order type is auto-detected: market by default, limit when `--price` is provided.
 
 ### Positions
 
@@ -188,22 +191,56 @@ dipcoin-cli orders --symbol <symbol> --json
 dipcoin-cli orders --vault <address> --json
 ```
 
-### Vault / Sub-Account
+### Sub-Account (HD Derivation)
+
+HD-derived sub-account management. These are local key derivation + on-chain registration commands.
 
 ```bash
-# List HD-derived vault addresses (requires MNEMONIC)
-dipcoin-cli vault list --json
-dipcoin-cli vault list --count 10 --json
+# List HD-derived sub-account addresses (requires MNEMONIC)
+dipcoin-cli sub-account list --json
+dipcoin-cli sub-account list --count 10 --json
 
-# Setup vault: derive sub-account at index and register on-chain
-dipcoin-cli vault setup <index> --json
+# Derive sub-account at index and register on-chain
+dipcoin-cli sub-account setup <index> --json
 
 # Set sub-account manually (on-chain tx)
-dipcoin-cli vault set-sub-account <subAddress> --json
+dipcoin-cli sub-account set <subAddress> --json
+```
 
-# View vault info (by address or vault-index)
-dipcoin-cli vault info --address <vault_address> --json
-dipcoin-cli --vault-index 1 vault info --json
+### Vault (On-Chain Vault Contracts)
+
+On-chain vault operations for DipCoin vault contracts. These are separate from HD sub-accounts.
+
+```bash
+# Create a new vault
+dipcoin-cli vault create --name <name> --trader <address> --max-cap <usdc> \
+  --min-deposit <usdc> --creator-share <pct> --profit-share <pct> --initial <usdc> --json
+
+# List vaults created by current wallet
+dipcoin-cli vault list --json
+
+# Show vault details (positional argument, not --address)
+dipcoin-cli vault info <vaultId> --json
+
+# Deposit/withdraw from vault
+dipcoin-cli vault deposit <vaultId> <amount> --json
+dipcoin-cli vault withdraw <vaultId> <shares> --json
+
+# Fill pending withdrawal requests
+dipcoin-cli vault fill <vaultId> <requestIDs...> [--markets <ids>] --json
+
+# Close/remove/claim vault
+dipcoin-cli vault close <vaultId> [--markets <ids>] --json
+dipcoin-cli vault remove <vaultId> --json
+dipcoin-cli vault claim <vaultId> --json
+
+# Vault management
+dipcoin-cli vault set-trader <vaultId> <address> --json
+dipcoin-cli vault set-sub-trader <vaultId> <address> [--disable] --json
+dipcoin-cli vault set-deposit-status <vaultId> [--disable] --json
+dipcoin-cli vault set-max-cap <vaultId> <amount> --json
+dipcoin-cli vault set-min-deposit <vaultId> <amount> --json
+dipcoin-cli vault set-auto-close <vaultId> [--disable] --json
 ```
 
 ### History
@@ -226,36 +263,36 @@ dipcoin-cli history balance --page <n> --size <n> --json
 
 ## Multi-Vault Workflow (HD Derivation)
 
-With `MNEMONIC` set, use `--vault-index` to operate on different vaults:
+With `MNEMONIC` set, use `--vault-index` to operate on different sub-accounts:
 
-1. **List derived addresses:** `vault list`
-2. **Register vault on-chain:** `vault setup 1`
-3. **Deposit to vault 1:** `account deposit 100 --vault-index 1` (not global flag here)
-4. **Trade on vault 1:** `dipcoin-cli --vault-index 1 trade buy BTC 50USDC 10x`
-5. **Check vault 1 info:** `dipcoin-cli --vault-index 1 account info`
-6. **Check vault 1 balance:** `dipcoin-cli --vault-index 1 balance`
-7. **Check vault 1 positions:** `dipcoin-cli --vault-index 1 position list`
+1. **List derived addresses:** `dipcoin-cli sub-account list`
+2. **Register sub-account on-chain:** `dipcoin-cli sub-account setup 1`
+3. **Deposit to sub-account 1:** `dipcoin-cli --vault-index 1 account deposit 100`
+4. **Trade on sub-account 1:** `dipcoin-cli --vault-index 1 trade buy BTC 50USDC 10x`
+5. **Check sub-account 1 info:** `dipcoin-cli --vault-index 1 account info`
+6. **Check sub-account 1 balance:** `dipcoin-cli --vault-index 1 balance`
+7. **Check sub-account 1 positions:** `dipcoin-cli --vault-index 1 position list`
 
-`--vault-index` is a **global option** placed before the subcommand. Index 0 = main account, 1+ = vault sub-accounts.
+`--vault-index` is a **global option** placed **before** the subcommand. Index 0 = main account, 1+ = sub-accounts.
 
 ## Typical Trading Workflow
 
-1. **Check available pairs:** `market pairs`
-2. **Get current price:** `market ticker BTC-PERP`
-3. **Check account balance:** `account info`
-4. **Open a position:** `trade buy BTC 100USDC 10x --tp 105000 --sl 90000`
-5. **Monitor position:** `position list`
-6. **Monitor orders:** `orders`
-7. **Close position (reduce-only sell):** `trade sell BTC 0 10x --qty <quantity> --reduce-only`
-8. **Review history:** `history orders --symbol BTC-PERP`
+1. **Check available pairs:** `dipcoin-cli market pairs --json`
+2. **Get current price:** `dipcoin-cli market ticker BTC --json`
+3. **Check account balance:** `dipcoin-cli account info --json`
+4. **Open a position:** `dipcoin-cli trade buy BTC 100USDC 10x --tp 105000 --sl 90000 --json`
+5. **Monitor position:** `dipcoin-cli position list --json`
+6. **Monitor orders:** `dipcoin-cli orders --json`
+7. **Close position:** `dipcoin-cli trade sell BTC 0 10x --qty <quantity> --reduce-only --json`
+8. **Review history:** `dipcoin-cli history orders --symbol BTC-PERP --json`
 
 ## Important Notes
 
 - All price/quantity values returned by the API are in **wei (18 decimals)**. Divide by `1e18` to get human-readable values. When using `--json`, the output is raw wei.
-- `--usdc` mode auto-converts USDC margin amount to quantity based on current market price and leverage.
-- On-chain operations (deposit, withdraw, margin add/remove, set-sub-account) require Sui chain interaction and may take a few seconds.
+- USDC margin mode auto-converts the margin amount to quantity based on current market price and leverage.
+- On-chain operations (deposit, withdraw, margin add/remove, sub-account set/setup, vault operations) require Sui chain interaction and may take a few seconds.
 - Authentication is handled automatically using `MNEMONIC` in `.env`.
 - Order hashes returned from trade commands can be used with `trade cancel`.
-- `--vault-index <n>` (global option, before subcommand) selects HD-derived vault. `--vault <address>` (per-command option) is a fallback for explicit address.
+- `--vault-index <n>` (global option, before subcommand) selects HD-derived sub-account. `--vault <address>` (per-command option) is a fallback for explicit address.
 - Available trading pair symbols include: `BTC-PERP`, `ETH-PERP`, `SUI-PERP`, etc. Use `market pairs` to get the full list.
 - **SECURITY:** Never log or expose the user's `MNEMONIC`. Treat it as a secret at all times.

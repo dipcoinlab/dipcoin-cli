@@ -26,3 +26,24 @@ export function handleError(error: any): void {
   console.error("Error:", typeof error === "string" ? error : error?.message || JSON.stringify(error));
   process.exit(1);
 }
+
+/**
+ * Print a standard transaction result (success message or failure with exit).
+ */
+export function printTxResult(program: Command, tx: any, successMsg: string): void {
+  const status = tx?.effects?.status?.status;
+  const error = tx?.effects?.status?.error;
+  if (isJson(program)) return printJson({ digest: tx?.digest, status, error });
+  if (status === "failure") {
+    console.error(`Failed: ${error}`);
+    process.exit(1);
+  }
+  console.log(`${successMsg} Tx: ${tx?.digest}`);
+}
+
+/**
+ * Normalize a symbol to include "-PERP" suffix if missing.
+ */
+export function normalizeSymbol(s: string): string {
+  return s.includes("-") ? s : `${s}-PERP`;
+}
