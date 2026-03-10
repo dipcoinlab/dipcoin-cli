@@ -41,7 +41,6 @@
     "trading"
   ],
   "dependencies": {
-    "@dipcoinlab/perp-ts-library": "^0.0.23",
     "@mysten/sui": "^1.20.0",
     "@pythnetwork/pyth-sui-js": "^2.4.0",
     "axios": "^1.6.0",

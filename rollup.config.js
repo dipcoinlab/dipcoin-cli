@@ -45,7 +45,6 @@ var rollup_config = [
     external: [
       "axios",
       "@mysten/sui",
-      "@dipcoinlab/perp-ts-library",
       "bignumber.js",
       "buffer",
       "node:buffer",
@@ -81,7 +80,6 @@ var rollup_config = [
       "@mysten/sui/keypairs/ed25519",
       "@mysten/sui/transactions",
       "@mysten/sui/utils",
-      "@dipcoinlab/perp-ts-library",
       "@pythnetwork/pyth-sui-js",
       "bignumber.js",
       "buffer",

@@ -37,13 +37,18 @@ jest.mock("@mysten/sui/client", () => ({
   SuiClient: jest.fn().mockImplementation(() => ({})),
   getFullnodeUrl: jest.fn().mockReturnValue("https://mock-rpc.com"),
 }));
-jest.mock("@dipcoinlab/perp-ts-library", () => ({
-  ExchangeOnChain: jest.fn().mockImplementation(() => ({})),
-  TransactionBuilder: jest.fn().mockImplementation(() => ({})),
-  OrderSigner: {
-    getOrderMessageForUIWallet: jest.fn().mockReturnValue("mock-order-message"),
-  },
-  DECIMALS: { USDC: 6 },
+jest.mock("../onchain", () => ({
+  getOrderMessageForUIWallet: jest.fn().mockReturnValue("mock-order-message"),
+  executeTxBlock: jest.fn().mockResolvedValue({}),
+  getDeploymentPerpetualID: jest.fn().mockReturnValue("0xmock_perp_id"),
+  getOnChainOraclePrice: jest.fn().mockResolvedValue(50000),
+  depositToBank: jest.fn().mockResolvedValue({}),
+  withdrawFromBank: jest.fn().mockResolvedValue({}),
+  setSubAccount: jest.fn().mockResolvedValue({}),
+  buildAddMarginTx: jest.fn().mockReturnValue({}),
+  buildRemoveMarginTx: jest.fn().mockReturnValue({}),
+  buildSetOraclePriceTx: jest.fn().mockReturnValue({}),
+  buildBatchSetOraclePriceTx: jest.fn().mockReturnValue({}),
 }));
 jest.mock("@pythnetwork/pyth-sui-js", () => ({
   SuiPriceServiceConnection: jest.fn(),

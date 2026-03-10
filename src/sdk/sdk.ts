@@ -1,7 +1,6 @@
 // Copyright (c) 2025 Dipcoin LLC
 // SPDX-License-Identifier: Apache-2.0
 
-import { ExchangeOnChain, OrderSigner, TransactionBuilder } from "@dipcoinlab/perp-ts-library";
 import { SuiClient, SuiTransactionBlockResponse, getFullnodeUrl } from "@mysten/sui/client";
 import { Keypair } from "@mysten/sui/cryptography";
 import { Transaction } from "@mysten/sui/transactions";
@@ -9,6 +8,19 @@ import BigNumber from "bignumber.js";
 import { SuiPriceServiceConnection, SuiPythClient } from "@pythnetwork/pyth-sui-js";
 import { API_ENDPOINTS, DECIMALS, ONBOARDING_MESSAGE, PYTH_CONFIG } from "../constants";
 import { HttpClient } from "../services/httpClient";
+import {
+  getOrderMessageForUIWallet,
+  executeTxBlock,
+  getDeploymentPerpetualID,
+  getOraclePrice as getOnChainOraclePrice,
+  depositToBank as onChainDepositToBank,
+  withdrawFromBank as onChainWithdrawFromBank,
+  setSubAccount as onChainSetSubAccount,
+  buildAddMarginTx,
+  buildRemoveMarginTx,
+  buildSetOraclePriceTx,
+  buildBatchSetOraclePriceTx,
+} from "../onchain";
 import {
   AccountInfo,
   AccountInfoParams,
@@ -72,10 +84,8 @@ export class DipCoinPerpSDK {
   private subJwtToken?: string;
   private isAuthenticating: boolean = false;
   private isSubAuthenticating: boolean = false;
-  private exchangeOnChain: ExchangeOnChain;
   private deploymentConfig: any;
   private suiClient: SuiClient;
-  private transactionBuilder: TransactionBuilder;
   private priceServiceConnection?: SuiPriceServiceConnection;
   private pythClient?: SuiPythClient;
   private tradingPairsCache?: TradingPair[];
@@ -113,16 +123,6 @@ export class DipCoinPerpSDK {
     this.deploymentConfig = readFile(`config/deployed/${options.network}/main_contract.json`);
     const rpcUrl = options.customRpc || getFullnodeUrl(options.network);
     this.suiClient = new SuiClient({ url: rpcUrl });
-    this.exchangeOnChain = new ExchangeOnChain(this.deploymentConfig, this.suiClient, this.keypair);
-
-    const packageId = this.getDeploymentPackageId();
-    const protocolConfigId = this.getDeploymentProtocolConfigId();
-    this.transactionBuilder = new TransactionBuilder(
-      packageId,
-      protocolConfigId,
-      this.deploymentConfig,
-      this.suiClient as any
-    );
   }
 
   /**
@@ -447,7 +447,7 @@ export class DipCoinPerpSDK {
       }
 
       // Generate order message for signing
-      const orderMsg = OrderSigner.getOrderMessageForUIWallet(order);
+      const orderMsg = getOrderMessageForUIWallet(order);
       const orderHashBytes = new TextEncoder().encode(orderMsg);
 
       // Sign main order
@@ -456,7 +456,7 @@ export class DipCoinPerpSDK {
       // Sign TP order if exists
       let tpOrderSignature: string | undefined;
       if (tpOrder) {
-        const tpOrderMsg = OrderSigner.getOrderMessageForUIWallet(tpOrder);
+        const tpOrderMsg = getOrderMessageForUIWallet(tpOrder);
         const tpOrderHashBytes = new TextEncoder().encode(tpOrderMsg);
         tpOrderSignature = await signMessage(signingKeypair, tpOrderHashBytes);
       }
@@ -464,7 +464,7 @@ export class DipCoinPerpSDK {
       // Sign SL order if exists
       let slOrderSignature: string | undefined;
       if (slOrder) {
-        const slOrderMsg = OrderSigner.getOrderMessageForUIWallet(slOrder);
+        const slOrderMsg = getOrderMessageForUIWallet(slOrder);
         const slOrderHashBytes = new TextEncoder().encode(slOrderMsg);
         slOrderSignature = await signMessage(signingKeypair, slOrderHashBytes);
       }
@@ -933,7 +933,7 @@ export class DipCoinPerpSDK {
           salt: tpSaltValue,
         };
 
-        const tpOrderMsg = OrderSigner.getOrderMessageForUIWallet(tpOrder);
+        const tpOrderMsg = getOrderMessageForUIWallet(tpOrder);
         const tpOrderSignature = await signMessage(
           signingKeypair,
           new TextEncoder().encode(tpOrderMsg)
@@ -989,7 +989,7 @@ export class DipCoinPerpSDK {
           salt: slSaltValue,
         };
 
-        const slOrderMsg = OrderSigner.getOrderMessageForUIWallet(slOrder);
+        const slOrderMsg = getOrderMessageForUIWallet(slOrder);
         const slOrderSignature = await signMessage(
           signingKeypair,
           new TextEncoder().encode(slOrderMsg)
@@ -1977,10 +1977,11 @@ export class DipCoinPerpSDK {
   async addMargin(params: MarginAdjustmentParams): Promise<SuiTransactionBlockResponse> {
     const transaction = await this.buildMarginTransaction(params, "add");
     if (transaction) {
-      return this.exchangeOnChain.executeTxBlock(transaction, this.keypair);
+      return executeTxBlock(this.suiClient, transaction, this.keypair);
     }
     const fallbackPayload = this.buildMarginCallArgs(params, "add");
-    return this.exchangeOnChain.addMargin(fallbackPayload);
+    const tx = buildAddMarginTx(this.deploymentConfig, fallbackPayload, undefined, fallbackPayload.gasBudget, this.keypair.getPublicKey().toSuiAddress());
+    return executeTxBlock(this.suiClient, tx, this.keypair);
   }
 
   /**
@@ -1990,10 +1991,11 @@ export class DipCoinPerpSDK {
   async removeMargin(params: MarginAdjustmentParams): Promise<SuiTransactionBlockResponse> {
     const transaction = await this.buildMarginTransaction(params, "remove");
     if (transaction) {
-      return this.exchangeOnChain.executeTxBlock(transaction, this.keypair);
+      return executeTxBlock(this.suiClient, transaction, this.keypair);
     }
     const fallbackPayload = this.buildMarginCallArgs(params, "remove");
-    return this.exchangeOnChain.removeMargin(fallbackPayload);
+    const tx = buildRemoveMarginTx(this.deploymentConfig, fallbackPayload, undefined, fallbackPayload.gasBudget, this.keypair.getPublicKey().toSuiAddress());
+    return executeTxBlock(this.suiClient, tx, this.keypair);
   }
 
   /**
@@ -2051,14 +2053,6 @@ export class DipCoinPerpSDK {
     };
   }
 
-  private getDeploymentPackageId(): string {
-    const packages = this.deploymentConfig?.packages;
-    if (!packages || !packages.length) {
-      throw new Error("Deployment config missing packages array");
-    }
-    return packages[packages.length - 1];
-  }
-
   private getDeploymentProtocolConfigId(): string {
     const protocolId = this.deploymentConfig?.objects?.ProtocolConfig?.id;
     if (!protocolId) {
@@ -2071,18 +2065,15 @@ export class DipCoinPerpSDK {
     params: MarginAdjustmentParams,
     action: "add" | "remove"
   ): Promise<Transaction | undefined> {
-    if (!this.transactionBuilder) {
-      return undefined;
-    }
     const payload = this.buildMarginCallArgs(params, action);
     const updatePriceTx = payload.market
       ? await this.buildUpdatePriceTransaction(payload.market)
       : undefined;
     const baseTx = updatePriceTx || new Transaction();
     if (action === "add") {
-      return this.transactionBuilder.exchange_addMarginTx(payload, baseTx, params.gasBudget);
+      return buildAddMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
     }
-    return this.transactionBuilder.exchange_removeMarginTx(payload, baseTx, params.gasBudget);
+    return buildRemoveMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
   }
 
   private async buildUpdatePriceTransaction(symbol: string): Promise<Transaction | undefined> {
@@ -2135,11 +2126,11 @@ export class DipCoinPerpSDK {
     symbol: string
   ): Promise<Transaction | undefined> {
     try {
-      const oraclePrice = await this.exchangeOnChain.getOraclePrice(symbol);
+      const oraclePrice = await getOnChainOraclePrice(this.suiClient, this.deploymentConfig, symbol);
       if (oraclePrice === undefined || oraclePrice === null) {
         return undefined;
       }
-      return this.transactionBuilder.price_info_setOraclePriceTx({
+      return buildSetOraclePriceTx(this.deploymentConfig, {
         price: Number(oraclePrice),
         market: symbol,
       });
@@ -2255,7 +2246,7 @@ export class DipCoinPerpSDK {
    */
   private resolvePerpIdFromDeployment(market: string): string | undefined {
     try {
-      const perpId = this.exchangeOnChain.getPerpetualID(market);
+      const perpId = getDeploymentPerpetualID(this.deploymentConfig, market);
       return perpId || undefined;
     } catch (error) {
       console.warn(`Failed to resolve PerpetualID for market ${market}:`, error);
@@ -2269,7 +2260,9 @@ export class DipCoinPerpSDK {
    * @returns On-chain transaction result
    */
   async setSubAccount(subAddress: string) {
-    return await this.exchangeOnChain.setSubAccount(
+    return await onChainSetSubAccount(
+      this.suiClient,
+      this.deploymentConfig,
       {
         account: subAddress,
         status: true,
@@ -2289,7 +2282,9 @@ export class DipCoinPerpSDK {
    * ```
    */
   async depositToBank(amount: number) {
-    return await this.exchangeOnChain.depositToBank(
+    return await onChainDepositToBank(
+      this.suiClient,
+      this.deploymentConfig,
       {
         amount: formatNormalToWei(amount, DECIMALS.USDC),
         accountAddress: this.address,
@@ -2309,7 +2304,9 @@ export class DipCoinPerpSDK {
    * ```
    */
   async withdrawFromBank(amount: number) {
-    return await this.exchangeOnChain.withdrawFromBank(
+    return await onChainWithdrawFromBank(
+      this.suiClient,
+      this.deploymentConfig,
       {
         amount: formatNormalToWei(amount, DECIMALS.USDC),
         accountAddress: this.address,
@@ -2421,11 +2418,11 @@ export class DipCoinPerpSDK {
     const symbols = markets && markets.length > 0 ? markets : this.getMarketSymbols();
 
     // On testnet, prepend price oracle updates so PriceInfoObjects are fresh
-    if (this.options.network === "testnet" && this.transactionBuilder) {
+    if (this.options.network === "testnet") {
       const prices: { price: number; confidence?: string; market?: string }[] = [];
       for (const sym of symbols) {
         try {
-          const oraclePrice = await this.exchangeOnChain.getOraclePrice(sym);
+          const oraclePrice = await getOnChainOraclePrice(this.suiClient, this.deploymentConfig, sym);
           if (oraclePrice !== undefined && oraclePrice !== null) {
             prices.push({ price: Number(oraclePrice), market: sym });
           }
@@ -2434,7 +2431,7 @@ export class DipCoinPerpSDK {
         }
       }
       if (prices.length > 0) {
-        this.transactionBuilder.price_info_batchSetOraclePriceTx({ prices }, t);
+        buildBatchSetOraclePriceTx(this.deploymentConfig, { prices }, t);
       }
     }
 
