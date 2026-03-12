@@ -42,12 +42,12 @@ function getKeypair(): Keypair {
   console.error(`  mkdir -p ~/.config/dipcoin`);
   console.error(`  cat > ~/.config/dipcoin/env << 'EOF'`);
   console.error(`DIPCOIN_PRIVATE_KEY=suiprivkey1...`);
-  console.error(`DIPCOIN_NETWORK=testnet`);
+  console.error(`DIPCOIN_NETWORK=mainnet`);
   console.error(`EOF\n`);
   console.error(`Option 2 — Mnemonic:\n`);
   console.error(`  cat > ~/.config/dipcoin/env << 'EOF'`);
   console.error(`DIPCOIN_MNEMONIC=word1 word2 word3 ... word12`);
-  console.error(`DIPCOIN_NETWORK=testnet`);
+  console.error(`DIPCOIN_NETWORK=mainnet`);
   console.error(`EOF\n`);
   process.exit(1);
 }
@@ -56,7 +56,7 @@ function getKeypair(): Keypair {
  * Get the network from env.
  */
 function getNetwork(): "mainnet" | "testnet" {
-  return (process.env.DIPCOIN_NETWORK as "mainnet" | "testnet") || "testnet";
+  return (process.env.DIPCOIN_NETWORK as "mainnet" | "testnet") || "mainnet";
 }
 
 /**

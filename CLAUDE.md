@@ -173,7 +173,7 @@ Key API paths:
 Env loaded from `~/.config/dipcoin/env` or `.env` in cwd:
 - `DIPCOIN_PRIVATE_KEY` — Sui private key (recommended)
 - `DIPCOIN_MNEMONIC` — 12-word Sui mnemonic (alternative)
-- `DIPCOIN_NETWORK` — `mainnet` or `testnet` (default: testnet)
+- `DIPCOIN_NETWORK` — `mainnet` or `testnet` (default: mainnet)
 
 ## Code Style
 

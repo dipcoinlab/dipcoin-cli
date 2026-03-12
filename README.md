@@ -2,6 +2,26 @@
 
 TypeScript SDK and CLI for perpetual futures trading on the Sui blockchain.
 
+## AI Agent Integration (OpenClaw)
+
+This project includes a [`SKILL.md`](./SKILL.md) file that teaches AI agents how to use the CLI. To use it with [OpenClaw](https://openclaw.ai) or similar agent platforms:
+
+1. **Import the skill file** — Copy the contents of `SKILL.md` into your agent's skill/knowledge base, or point the agent to the raw file URL:
+   ```
+   https://raw.githubusercontent.com/dipcoinlab/dipcoin-cli/main/SKILL.md
+   ```
+
+2. **Ensure the CLI is installed** in the agent's execution environment:
+   ```bash
+   npm install -g dipcoin-cli
+   ```
+
+3. **Configure credentials** — Set `DIPCOIN_PRIVATE_KEY` (or `DIPCOIN_MNEMONIC`) and `DIPCOIN_NETWORK` as environment variables in the agent's runtime.
+
+4. **Use `--json` flag** — The skill guide instructs agents to always use `--json` for machine-readable output.
+
+The `SKILL.md` covers the complete workflow: installation, configuration, market data, trading, position management, and error handling.
+
 ## Installation
 
 **CLI (global):**
@@ -34,7 +54,7 @@ EOF
 |----------|----------|-------------|
 | `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
 | `DIPCOIN_MNEMONIC` | is required | 12-word Sui mnemonic phrase (derives keypair at `m/44'/784'/0'/0'/0'`) |
-| `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `testnet`) |
+| `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
 If both `DIPCOIN_PRIVATE_KEY` and `DIPCOIN_MNEMONIC` are set, the private key takes precedence.
 
@@ -216,203 +236,6 @@ dipcoin-cli history balance [--page <n>] [--size <n>]
 ```
 
 All history commands support `--vault <address>` and `--begin-time <ms>`.
-
-## AI Agent Integration (OpenClaw)
-
-This project includes a [`SKILL.md`](./SKILL.md) file that teaches AI agents how to use the CLI. To use it with [OpenClaw](https://openclaw.ai) or similar agent platforms:
-
-1. **Import the skill file** — Copy the contents of `SKILL.md` into your agent's skill/knowledge base, or point the agent to the raw file URL:
-   ```
-   https://raw.githubusercontent.com/stardipcoin/dipcoin-perp-client-ts/main/SKILL.md
-   ```
-
-2. **Ensure the CLI is installed** in the agent's execution environment:
-   ```bash
-   npm install -g dipcoin-cli
-   ```
-
-3. **Configure credentials** — Set `DIPCOIN_PRIVATE_KEY` (or `DIPCOIN_MNEMONIC`) and `DIPCOIN_NETWORK` as environment variables in the agent's runtime.
-
-4. **Use `--json` flag** — The skill guide instructs agents to always use `--json` for machine-readable output.
-
-The `SKILL.md` covers the complete workflow: installation, configuration, market data, trading, position management, and error handling.
-
-## SDK Usage
-
-### Initialize
-
-```typescript
-import { initDipCoinPerpSDK } from "dipcoin-cli";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-
-// From mnemonic
-const keypair = Ed25519Keypair.deriveKeypair("your mnemonic phrase ...");
-const sdk = initDipCoinPerpSDK(keypair, { network: "mainnet" });
-
-// Or from private key
-import { fromExportedKeypair } from "dipcoin-cli";
-const keypair2 = fromExportedKeypair("suiprivkey1...");
-const sdk2 = initDipCoinPerpSDK(keypair2, { network: "mainnet" });
-```
-
-### Authentication
-
-```typescript
-const authResult = await sdk.authenticate();
-if (authResult.status) {
-  console.log("Authenticated:", authResult.data);
-}
-
-// All API methods auto-authenticate when needed
-```
-
-### Account Info
-
-```typescript
-const info = await sdk.getAccountInfo();
-if (info.status && info.data) {
-  console.log("Balance:", info.data.walletBalance);
-  console.log("Free Collateral:", info.data.freeCollateral);
-}
-```
-
-### Deposit & Withdraw
-
-```typescript
-// On-chain transactions (USDC to/from exchange)
-await sdk.depositToBank(100);    // 100 USDC
-await sdk.withdrawFromBank(50);  // 50 USDC
-```
-
-### Place Order
-
-```typescript
-import { OrderSide, OrderType } from "dipcoin-cli";
-
-// Market order
-const result = await sdk.placeOrder({
-  symbol: "BTC-PERP",
-  side: OrderSide.BUY,
-  orderType: OrderType.MARKET,
-  quantity: "0.1",
-  leverage: "10",
-});
-
-// Limit order
-const limit = await sdk.placeOrder({
-  symbol: "BTC-PERP",
-  side: OrderSide.BUY,
-  orderType: OrderType.LIMIT,
-  quantity: "0.1",
-  price: "95000",
-  leverage: "10",
-});
-
-// With TP/SL
-const withTpSl = await sdk.placeOrder({
-  symbol: "BTC-PERP",
-  side: OrderSide.BUY,
-  orderType: OrderType.MARKET,
-  quantity: "0.1",
-  leverage: "10",
-  tpTriggerPrice: "105000",
-  slTriggerPrice: "90000",
-});
-```
-
-### Position TP/SL
-
-```typescript
-await sdk.placePositionTpSlOrders({
-  symbol: "BTC-PERP",
-  market: "<perpetual-id>",
-  side: OrderSide.SELL,
-  isLong: true,
-  leverage: "10",
-  quantity: "0.1",
-  tp: { triggerPrice: "105000", orderType: OrderType.MARKET, tpslType: "position" },
-  sl: { triggerPrice: "90000", orderType: OrderType.MARKET, tpslType: "position" },
-});
-```
-
-### Market Data
-
-```typescript
-const ticker = await sdk.getTicker("BTC-PERP");
-const orderBook = await sdk.getOrderBook("BTC-PERP");
-const oraclePrice = await sdk.getOraclePrice("BTC-PERP");
-const pairs = await sdk.getTradingPairs();
-```
-
-### Cancel Order
-
-```typescript
-await sdk.cancelOrder({
-  symbol: "BTC-PERP",
-  orderHashes: ["0x1234..."],
-});
-```
-
-### Positions & Open Orders
-
-```typescript
-const positions = await sdk.getPositions();
-const orders = await sdk.getOpenOrders();
-```
-
-### Leverage & Margin
-
-```typescript
-await sdk.adjustLeverage({ symbol: "BTC-PERP", leverage: "10", marginType: "ISOLATED" });
-await sdk.addMargin({ symbol: "BTC-PERP", amount: 5 });
-await sdk.removeMargin({ symbol: "BTC-PERP", amount: 2 });
-```
-
-## Types
-
-```typescript
-enum OrderSide { BUY = "BUY", SELL = "SELL" }
-enum OrderType { MARKET = "MARKET", LIMIT = "LIMIT" }
-
-interface AccountInfo {
-  walletBalance: string;
-  totalUnrealizedProfit: string;
-  accountValue: string;
-  freeCollateral: string;
-  totalMargin: string;
-}
-
-interface Position {
-  symbol: string; side: string; quantity: string;
-  avgEntryPrice: string; leverage: string; margin: string;
-  unrealizedProfit: string; liquidationPrice: string;
-}
-
-interface OpenOrder {
-  hash: string; symbol: string; side: string;
-  orderType: string; price: string; quantity: string;
-  filledQty: string; leverage: string; status: string;
-}
-
-interface SDKResponse<T> {
-  status: boolean;
-  data?: T;
-  error?: string;
-}
-```
-
-## Error Handling
-
-All SDK methods return `SDKResponse<T>`. Check `status` before accessing `data`:
-
-```typescript
-const result = await sdk.placeOrder(/* ... */);
-if (result.status) {
-  console.log(result.data);
-} else {
-  console.error(result.error);
-}
-```
 
 ## Development
 

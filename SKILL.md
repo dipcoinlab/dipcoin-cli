@@ -41,7 +41,7 @@ export DIPCOIN_NETWORK=mainnet   # or testnet
 |----------|----------|-------------|
 | `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
 | `DIPCOIN_MNEMONIC` | is required | 12-word Sui mnemonic phrase (derives keypair at `m/44'/784'/0'/0'/0'`) |
-| `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `testnet`) |
+| `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
 If both are set, `DIPCOIN_PRIVATE_KEY` takes precedence.
 
