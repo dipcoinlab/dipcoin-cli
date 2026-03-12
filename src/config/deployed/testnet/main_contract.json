@@ -1,0 +1,333 @@
+{
+  "deployer": "0x74a096bbe8126ab58db4d82cf7efbbef3b85e58560c12e00e9efef9a153882fc",
+  "vaultPackage": "0xebb8a9fedc09d8f32d8dfacddc4ad705766495a673fc0de1d8830eb4d8152dc9",
+  "packages": [
+    "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87",
+    "0xc2dd582487d685492ab7115708168b8278233442f830a5977e2cfcd6647f8fb6",
+    "0xebb8a9fedc09d8f32d8dfacddc4ad705766495a673fc0de1d8830eb4d8152dc9"
+  ],
+  "objects": {
+    "OrderStatus": {
+      "id": "0x8649c6cc316148fb3eeab79edac6234d81d9d2217f8454616848a2e95c61fb57",
+      "owner": "Shared",
+      "dataType": "0x2::table::Table<vector<u8>, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::order::OrderStatus>",
+      "package_version": 1
+    },
+    "ProtocolConfig": {
+      "id": "0x941880b7423cee8250d62d33a4bd15ab56a90c73a33e217b63753f66e8e720b0",
+      "owner": "Shared",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::protocol::ProtocolConfig",
+      "package_version": 1
+    },
+    "UpgradeCap": {
+      "id": "0x5ec711169dcef7523862c5eda8a22de9939da0366d86ff86920d161e1a542a8d",
+      "owner": "Owned",
+      "dataType": "0x2::package::UpgradeCap",
+      "package_version": 1
+    },
+    "FundingRateCap": {
+      "id": "0x7bd8ea5e18fe458cb23535e754925847313a1fdc40ee6cfbb8a91238cb556aa8",
+      "owner": "Owned",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::roles::FundingRateCap",
+      "package_version": 1
+    },
+    "ExchangeManagerCap": {
+      "id": "0x3b9a2493cfd474cfe276a6b4076d8aff0b6a23ba8d7379e2076121407bc49494",
+      "owner": "Owned",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::roles::ExchangeManagerCap",
+      "package_version": 1
+    },
+    "SubAccounts": {
+      "id": "0x5c006031299c4edaed3bd65b0932beeb6142cdb4db755cde7b181d7d9bf86ce4",
+      "owner": "Shared",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::sub_accounts::SubAccounts",
+      "package_version": 1
+    },
+    "UnlimitedMintCap": {
+      "id": "0x75225f1bb55a3eaddf26681382c8971f84b8a99db0ac795a857e4da243efc181",
+      "owner": "Owned",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::coin::UnlimitedMintCap",
+      "package_version": 1
+    },
+    "TxIndexer": {
+      "id": "0x28b619a8e585287a299948b323898cca85c2dc0ee3945475d84cad9afcddc53f",
+      "owner": "Shared",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::sub_accounts::TxIndexer",
+      "package_version": 1
+    },
+    "DeleveragingCap": {
+      "id": "0x64977d81aabd79db2a1fe188f82004a38ea54404a74fc3b44b9c60d84830bac2",
+      "owner": "Owned",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::roles::DeleveragingCap",
+      "package_version": 1
+    },
+    "ExchangeAdminCap": {
+      "id": "0xe1bc241a23da977865d470d2bfefd3bd352eae786c582e93ffa890af16b0d1c8",
+      "owner": "Owned",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::roles::ExchangeAdminCap",
+      "package_version": 1
+    },
+    "Currency": {
+      "id": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87",
+      "owner": "Immutable",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::coin::COIN",
+      "package_version": 1
+    },
+    "MintManager": {
+      "id": "0x559b37acdb56835126c20e07f4d98c0f728598c7109f280541849488dcce4aca",
+      "owner": "Shared",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::coin::MintManager",
+      "package_version": 1
+    },
+    "Bank": {
+      "id": "0xfc48d358fa92940fc62c3bbf86ce36ed5c7d11f8322c1acb7e0b3d12a915478a",
+      "owner": "Shared",
+      "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::bank::Bank<0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::coin::COIN>",
+      "package_version": 1
+    },
+    "BankTable": {
+      "owner": "Shared",
+      "id": "0x132d64ac8355786ceb5a008349689f268df788106e2f4887945d7d7a7c0f5b09",
+      "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::bank::BankAccount>",
+      "package_version": 1
+    },
+    "VaultConfig": {
+      "id": "0x3c5e80966ca1a69b0f9d42a4dc62c3e04798a2cda6f5b5aa970c79f2f8f7b6de",
+      "owner": "Shared",
+      "dataType": "0x2220fb7980d802f93aa9864564935c44bbeb4e8861b4182c9f71f7e0600a3525::vault::VaultConfig",
+      "package_version": 1
+    }
+  },
+  "markets": {
+    "ETH-PERP": {
+      "Config": {
+        "symbol": "ETH-PERP",
+        "quoteAssetSymbol": "USDC",
+        "quoteAssetName": "Circle USD",
+        "baseAssetSymbol": "ETH",
+        "baseAssetName": "Ethereum",
+        "defaultLeverage": "10000000000000000000",
+        "tickSize": "10000000000000000",
+        "minTradeQty": "10000000000000000",
+        "maxTradeQtyLimit": "1000000000000000000000",
+        "maxTradeQtyMarket": "100000000000000000000",
+        "stepSize": "10000000000000000",
+        "mtbLong": "20000000000000000",
+        "mtbShort": "20000000000000000",
+        "initialMarginReq": "20000000000000000",
+        "maintenanceMarginReq": "12500000000000000",
+        "defaultMakerFee": "150000000000000",
+        "defaultTakerFee": "550000000000000",
+        "maxFundingRate": "10000000000000000",
+        "feePool": "0x05ada716962dec8788b53ddad34827ffe46acfe16bfe9d7d064838fcda285073",
+        "gasPool": "0xefb4808ca08bd25f9edc4017d036ad8bd451d7674b11e0b322bc8b1a98d46e10",
+        "tradingStartTime": 1765959560943,
+        "priceInfoFeedId": "c6c75c89f14810ec1c54c03ab8f1864a4c4032791f05747f560faec380a695d1"
+      },
+      "Objects": {
+        "Perpetual": {
+          "id": "0xefb8750e887d96217860e5259822eb219362d7fa20fc7f3676675c559810d306",
+          "owner": "Shared",
+          "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::perpetual::Perpetual",
+          "package_version": 1
+        },
+        "PositionsTable": {
+          "owner": "Shared",
+          "id": "0xef8125f8c9398af4155a5af35b21f4103145b1a408e36e2adf5357a7d948f5e8",
+          "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::position::Position>",
+          "package_version": 1
+        },
+        "PriceInfoObject": {
+          "owner": "Shared",
+          "id": "0xfc763f3aede59ff1435e1d2d2860046deb18c1c3e7e4c2a3e28ad704c444726b",
+          "dataType": "0x57567739997d630ef41493c897170d689790dcda60fd623072e94da25e881e29::price_info::PriceInfoObject",
+          "package_version": 1
+        }
+      }
+    },
+    "BTC-PERP": {
+      "Config": {
+        "symbol": "BTC-PERP",
+        "quoteAssetSymbol": "USDC",
+        "quoteAssetName": "Circle USD",
+        "baseAssetSymbol": "BTC",
+        "baseAssetName": "Bitcoin",
+        "defaultLeverage": "10000000000000000000",
+        "tickSize": "100000000000000000",
+        "minTradeQty": "1000000000000000",
+        "maxTradeQtyLimit": "100000000000000000000",
+        "maxTradeQtyMarket": "10000000000000000000",
+        "stepSize": "1000000000000000",
+        "mtbLong": "20000000000000000",
+        "mtbShort": "20000000000000000",
+        "initialMarginReq": "20000000000000000",
+        "maintenanceMarginReq": "12500000000000000",
+        "defaultMakerFee": "150000000000000",
+        "defaultTakerFee": "550000000000000",
+        "maxFundingRate": "10000000000000000",
+        "feePool": "0x05ada716962dec8788b53ddad34827ffe46acfe16bfe9d7d064838fcda285073",
+        "gasPool": "0xefb4808ca08bd25f9edc4017d036ad8bd451d7674b11e0b322bc8b1a98d46e10",
+        "tradingStartTime": 1765959560943,
+        "priceInfoFeedId": "3b9551a68d01d954d6387aff4df1529027ffb2fee413082e509feb29cc4904fe"
+      },
+      "Objects": {
+        "Perpetual": {
+          "id": "0xfbf6a2d3f4866e6b12d5811a669856c82cc47b1541b1b315a807e284b06a63d1",
+          "owner": "Shared",
+          "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::perpetual::Perpetual",
+          "package_version": 1
+        },
+        "PositionsTable": {
+          "owner": "Shared",
+          "id": "0x3151d937e7b29ab616c8264218330a0852e733b8f5fa5610641be22c12803d6c",
+          "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::position::Position>",
+          "package_version": 1
+        },
+        "PriceInfoObject": {
+          "owner": "Shared",
+          "id": "0x3014340952a06e360796a5fe6dd0b103ff9b44e4d8af47b0d5d4720c6d957ca8",
+          "dataType": "0x57567739997d630ef41493c897170d689790dcda60fd623072e94da25e881e29::price_info::PriceInfoObject",
+          "package_version": 1
+        }
+      }
+    },
+    "SUI-PERP": {
+      "Config": {
+        "symbol": "SUI-PERP",
+        "quoteAssetSymbol": "USDC",
+        "quoteAssetName": "Circle USD",
+        "baseAssetSymbol": "SUI",
+        "baseAssetName": "Sui",
+        "defaultLeverage": "10000000000000000000",
+        "tickSize": "100000000000000",
+        "minTradeQty": "1000000000000000000",
+        "maxTradeQtyLimit": "1000000000000000000000000",
+        "maxTradeQtyMarket": "100000000000000000000000",
+        "stepSize": "1000000000000000000",
+        "mtbLong": "20000000000000000",
+        "mtbShort": "20000000000000000",
+        "initialMarginReq": "45000000000000000",
+        "maintenanceMarginReq": "30000000000000000",
+        "defaultMakerFee": "150000000000000",
+        "defaultTakerFee": "550000000000000",
+        "maxFundingRate": "10000000000000000",
+        "feePool": "0x05ada716962dec8788b53ddad34827ffe46acfe16bfe9d7d064838fcda285073",
+        "gasPool": "0xefb4808ca08bd25f9edc4017d036ad8bd451d7674b11e0b322bc8b1a98d46e10",
+        "tradingStartTime": 1765959560943,
+        "priceInfoFeedId": "50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266"
+      },
+      "Objects": {
+        "Perpetual": {
+          "id": "0xb9dc75040d95a7fa68f79f2638f454383a1d11f7dda656d257de346dfc7f30fc",
+          "owner": "Shared",
+          "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::perpetual::Perpetual",
+          "package_version": 1
+        },
+        "PositionsTable": {
+          "owner": "Shared",
+          "id": "0x6ec6ac72551aaf00b466c047bcdf8ee1d4c16c9446bf05174eae2df6646f8d93",
+          "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::position::Position>",
+          "package_version": 1
+        },
+        "PriceInfoObject": {
+          "owner": "Shared",
+          "id": "0xc40ab38f69ff86f11f10ce4468f7584b14e0179244ea4d0135e06567c7137838",
+          "dataType": "0x57567739997d630ef41493c897170d689790dcda60fd623072e94da25e881e29::price_info::PriceInfoObject",
+          "package_version": 1
+        }
+      }
+    },
+    "SOL-PERP": {
+      "Config": {
+        "symbol": "SOL-PERP",
+        "quoteAssetSymbol": "USDC",
+        "quoteAssetName": "Circle USD",
+        "baseAssetSymbol": "SOL",
+        "baseAssetName": "Solana",
+        "defaultLeverage": "10000000000000000000",
+        "tickSize": "10000000000000000",
+        "minTradeQty": "100000000000000000",
+        "maxTradeQtyLimit": "500000000000000000000",
+        "maxTradeQtyMarket": "250000000000000000000",
+        "stepSize": "100000000000000000",
+        "mtbLong": "20000000000000000",
+        "mtbShort": "20000000000000000",
+        "initialMarginReq": "45000000000000000",
+        "maintenanceMarginReq": "25000000000000000",
+        "defaultMakerFee": "100000000000000",
+        "defaultTakerFee": "300000000000000",
+        "maxFundingRate": "10000000000000000",
+        "feePool": "0x05ada716962dec8788b53ddad34827ffe46acfe16bfe9d7d064838fcda285073",
+        "gasPool": "0xefb4808ca08bd25f9edc4017d036ad8bd451d7674b11e0b322bc8b1a98d46e10",
+        "tradingStartTime": 1765959560943,
+        "priceInfoFeedId": "fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd"
+      },
+      "Objects": {
+        "Perpetual": {
+          "id": "0xfe5273e09460857fee9e3b681df265a4e59cff5eba2b2ff04a79eb7416fa9c2c",
+          "owner": "Shared",
+          "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::perpetual::Perpetual",
+          "package_version": 1
+        },
+        "PositionsTable": {
+          "owner": "Shared",
+          "id": "0x1e0eb716944631fcf82812e4fc760366366f4fb1851830e56b62053a4b328a64",
+          "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::position::Position>",
+          "package_version": 1
+        },
+        "PriceInfoObject": {
+          "owner": "Shared",
+          "id": "0xb1bba0a4eeac7d7a82b68a7cc9b0814bfcf9d2b9bd3494026dd33a96039fc8b9",
+          "dataType": "0x57567739997d630ef41493c897170d689790dcda60fd623072e94da25e881e29::price_info::PriceInfoObject",
+          "package_version": 1
+        }
+      }
+    },
+    "CETUS-PERP": {
+      "Config": {
+        "symbol": "CETUS-PERP",
+        "quoteAssetSymbol": "USDC",
+        "quoteAssetName": "Circle USD",
+        "baseAssetSymbol": "CETUS",
+        "baseAssetName": "Cetus",
+        "defaultLeverage": "10000000000000000000",
+        "tickSize": "100000000000000",
+        "minTradeQty": "1000000000000000000",
+        "maxTradeQtyLimit": "500000000000000000000000",
+        "maxTradeQtyMarket": "250000000000000000000000",
+        "stepSize": "1000000000000000000",
+        "mtbLong": "20000000000000000",
+        "mtbShort": "20000000000000000",
+        "initialMarginReq": "45000000000000000",
+        "maintenanceMarginReq": "25000000000000000",
+        "defaultMakerFee": "100000000000000",
+        "defaultTakerFee": "300000000000000",
+        "maxFundingRate": "10000000000000000",
+        "feePool": "0x2b1dc952ec7c846ff44c1727b820afd694e96e161730be3352d32d1bfa27dc2d",
+        "gasPool": "0xefb4808ca08bd25f9edc4017d036ad8bd451d7674b11e0b322bc8b1a98d46e10",
+        "tradingStartTime": 1737254434000,
+        "priceInfoFeedId": "cb324dafd531712dd31c39969ae0246ee4c6ae167257bcf8ac27e28ca35e6a0c"
+      },
+      "Objects": {
+        "Perpetual": {
+          "id": "0xadc15afee44674256ab88365bfa19b6f5d53f78c7f4ecff8bdc5f656676a0722",
+          "owner": "Shared",
+          "dataType": "0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::perpetual::Perpetual",
+          "package_version": 1
+        },
+        "PositionsTable": {
+          "owner": "Shared",
+          "id": "0xdde42b8d9563de6408360333b2eef35ea23294da8a958f6e961041420aec3a72",
+          "dataType": "0x2::table::Table<address, 0x0de11caea463b7ec51adb976774d6bc16ba3054dd95675c8bd06ec74fb7b1c87::position::Position>",
+          "package_version": 1
+        },
+        "PriceInfoObject": {
+          "owner": "Shared",
+          "id": "0x5acd93e932b44f1278f88413f5b06185430f655a2fad76a187fbf1fe9cbf50a2",
+          "dataType": "0x57567739997d630ef41493c897170d689790dcda60fd623072e94da25e881e29::price_info::PriceInfoObject",
+          "package_version": 1
+        }
+      }
+    }
+  }
+}

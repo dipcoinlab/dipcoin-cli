@@ -1,0 +1,53 @@
+{
+  "name": "dipcoin-cli",
+  "version": "0.8.3",
+  "description": "DipCoin Perpetual Trading CLI",
+  "bin": {
+    "dipcoin-cli": "./dist/cli.cjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "dipcoinlab",
+  "license": "Apache-2.0",
+  "scripts": {
+    "lint": "eslint src/ cli/ --ext .js,.jsx,.ts,.tsx",
+    "clean": "rm -rf dist build package",
+    "cli": "tsx cli/index.ts",
+    "build": "rm -rf dist; rollup -c rollup.config.js; mkdir -p dist/config/deployed/mainnet dist/config/deployed/testnet; cp -r src/config/deployed/* dist/config/deployed/"
+  },
+  "keywords": [
+    "sui",
+    "perp",
+    "perpetual",
+    "dipcoin",
+    "trading"
+  ],
+  "dependencies": {
+    "@mysten/sui": "^1.20.0",
+    "@pythnetwork/pyth-sui-js": "^2.4.0",
+    "axios": "^1.6.0",
+    "bignumber.js": "^9.2.0",
+    "buffer": "^6.0.3",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.3",
+    "dotenv": "^16.1.4"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^8.5.0",
+    "@types/bignumber.js": "^5.0.4",
+    "@types/node": "^20.8.10",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.6.2",
+    "rollup": "^2.79.0",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.0.4"
+  }
+}
