@@ -2,25 +2,13 @@
 
 TypeScript SDK and CLI for perpetual futures trading on the Sui blockchain.
 
-## AI Agent Integration (OpenClaw)
+## AI Agent Integration
 
-This project includes a [`SKILL.md`](./SKILL.md) file that teaches AI agents how to use the CLI. To use it with [OpenClaw](https://openclaw.ai) or similar agent platforms:
+Send the following skill link to your AI Agent, and it will guide you through the rest — including installation, configuration, and trading:
 
-1. **Import the skill file** — Copy the contents of `SKILL.md` into your agent's skill/knowledge base, or point the agent to the raw file URL:
-   ```
-   https://raw.githubusercontent.com/dipcoinlab/dipcoin-cli/main/SKILL.md
-   ```
-
-2. **Ensure the CLI is installed** in the agent's execution environment:
-   ```bash
-   npm install -g dipcoin-cli
-   ```
-
-3. **Configure credentials** — Set `DIPCOIN_PRIVATE_KEY` (or `DIPCOIN_MNEMONIC`) and `DIPCOIN_NETWORK` as environment variables in the agent's runtime.
-
-4. **Use `--json` flag** — The skill guide instructs agents to always use `--json` for machine-readable output.
-
-The `SKILL.md` covers the complete workflow: installation, configuration, market data, trading, position management, and error handling.
+```
+https://raw.githubusercontent.com/dipcoinlab/dipcoin-cli/main/SKILL.md
+```
 
 ## Installation
 
