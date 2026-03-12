@@ -1,8 +1,8 @@
-# DipCoin Perpetual Trading SDK & CLI
+# DipCoin Perpetual Trading CLI
 
-TypeScript SDK and CLI for perpetual futures trading on the Sui blockchain.
+TypeScript CLI for perpetual futures trading on the Sui blockchain.
 
-## AI Agent Integration
+## Usage For AI Agent
 
 Send the following skill link to your AI Agent, and it will guide you through the rest — including installation, configuration, and trading:
 
@@ -10,21 +10,13 @@ Send the following skill link to your AI Agent, and it will guide you through th
 https://raw.githubusercontent.com/dipcoinlab/dipcoin-cli/main/SKILL.md
 ```
 
-## Installation
+## Usage For Human
 
-**CLI (global):**
+### Installation
 
 ```bash
 npm install -g dipcoin-cli
 ```
-
-**SDK (as dependency):**
-
-```bash
-npm install dipcoin-cli
-```
-
-## CLI Quick Start
 
 ### Configuration
 
@@ -46,7 +38,7 @@ EOF
 
 If both `DIPCOIN_PRIVATE_KEY` and `DIPCOIN_MNEMONIC` are set, the private key takes precedence.
 
-### Basic Workflow
+### Quick Start
 
 ```bash
 # Check available pairs
@@ -71,16 +63,16 @@ dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only
 dipcoin-cli history orders --symbol BTC-PERP
 ```
 
-## CLI Commands
+### Commands
 
-### Global Options
+#### Global Options
 
 | Option | Description |
 |--------|-------------|
 | `--json` | Output in JSON format (machine-readable) |
 | `-V, --version` | Show version |
 
-### market
+#### market
 
 ```bash
 dipcoin-cli market pairs                    # List all trading pairs
@@ -91,7 +83,7 @@ dipcoin-cli market oracle <symbol>          # Oracle price
 
 Symbols auto-normalize: `BTC` becomes `BTC-PERP`.
 
-### account
+#### account
 
 ```bash
 dipcoin-cli account info                    # Balance, margin, PnL
@@ -100,13 +92,13 @@ dipcoin-cli account deposit <amount>        # Deposit USDC to exchange
 dipcoin-cli account withdraw <amount>       # Withdraw USDC from exchange
 ```
 
-### balance
+#### balance
 
 ```bash
 dipcoin-cli balance                         # On-chain coin balances
 ```
 
-### trade
+#### trade
 
 ```bash
 # Buy/Sell with USDC margin amount (auto-converts to quantity)
@@ -144,7 +136,7 @@ dipcoin-cli trade cancel <symbol> <hash1> [hash2...]
 | `--sl <price>` | Stop loss trigger price |
 | `--vault <address>` | Vault/creator address (for trading vault positions) |
 
-### position
+#### position
 
 ```bash
 dipcoin-cli position list                   # List open positions
@@ -165,15 +157,7 @@ dipcoin-cli position margin remove <symbol> <amount>
 
 The `--side` is the **closing side**: use `sell` for long positions, `buy` for short.
 
-### trade orders
-
-```bash
-dipcoin-cli trade orders                          # List all open orders
-dipcoin-cli trade orders --symbol BTC-PERP        # Filter by symbol
-dipcoin-cli trade orders --vault <address>        # Filter by vault
-```
-
-### vault
+#### vault
 
 On-chain vault operations (DipCoin vault contracts):
 
@@ -203,9 +187,7 @@ dipcoin-cli vault set-min-deposit <vaultId> <amount>
 dipcoin-cli vault set-auto-close <vaultId> [--disable]
 ```
 
-### referral
-
-Referral operations:
+#### referral
 
 ```bash
 dipcoin-cli referral bind <code>               # Bind a referral code
@@ -215,7 +197,7 @@ dipcoin-cli referral invitees                  # List your invitees
 dipcoin-cli referral invitees --page 2 --page-size 20
 ```
 
-### history
+#### history
 
 ```bash
 dipcoin-cli history orders [--symbol <s>] [--page <n>] [--size <n>]
