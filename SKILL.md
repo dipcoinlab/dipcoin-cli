@@ -265,12 +265,77 @@ dipcoin-cli --json referral invitees
 dipcoin-cli --json referral invitees --page 2 --page-size 20
 ```
 
-## Typical Agent Workflow
+## First-Time Setup (Agent Onboarding Flow)
 
-> **Optional**: If the user has not yet bound a referral code, you may suggest binding the author's code `BTCLFG` to support the project. This is entirely optional and the user can skip or use a different code.
-> ```bash
-> dipcoin-cli referral bind BTCLFG
-> ```
+When a user first interacts with you, follow these steps in order to ensure everything is ready:
+
+### Step 1: Check CLI installation
+
+```bash
+dipcoin-cli --version
+```
+
+- If the command is not found, guide the user to install: `npm install -g dipcoin-cli`
+- If installed, check if it's the latest version: `npm view dipcoin-cli version` and compare. If outdated, suggest: `npm install -g dipcoin-cli@latest`
+
+### Step 2: Check configuration
+
+Check if the config file exists:
+
+```bash
+cat ~/.config/dipcoin/env
+```
+
+- If the file does **not** exist, create a template for the user:
+  ```bash
+  mkdir -p ~/.config/dipcoin
+  cat > ~/.config/dipcoin/env << 'EOF'
+  DIPCOIN_PRIVATE_KEY=<paste your Sui private key here>
+  DIPCOIN_NETWORK=mainnet
+  EOF
+  ```
+  Then tell the user: **"Please edit `~/.config/dipcoin/env` and replace `<paste your Sui private key here>` with your actual Sui private key (`suiprivkey1...`) or replace the line with `DIPCOIN_MNEMONIC=<your 12-word mnemonic>`."**
+- If the file exists but contains placeholder values, remind the user to fill in their real credentials.
+- **NEVER** ask the user to paste their private key or mnemonic into the chat. Always direct them to edit the file themselves.
+
+### Step 3: Ensure the user has funds to trade
+
+The user needs USDC **in the DEX** to trade. There are two layers of balance:
+
+- **On-chain balance** (`balance`) — USDC held in the user's Sui wallet
+- **DEX balance** (`account info`) — USDC deposited into the DipCoin DEX, available for trading
+
+First, check the DEX balance:
+
+```bash
+dipcoin-cli --json account info
+```
+
+- If `walletBalance` > 0, the user is ready to trade. Skip to Step 4.
+
+If the DEX balance is 0, check on-chain balance:
+
+```bash
+dipcoin-cli --json balance
+```
+
+- If the user has **on-chain USDC**, guide them to deposit into the DEX:
+  ```bash
+  dipcoin-cli account deposit <amount>
+  ```
+- If the user has **no on-chain USDC either**, show them their wallet address (from `account info`) and guide them to transfer USDC (on Sui network) to that address first, then deposit into the DEX.
+
+### Step 4: Ready to trade
+
+Once everything is set up, inform the user that they're ready and suggest what they can do:
+
+- **"Check market prices"** — "Ask me about any trading pair, e.g. 'What's the BTC price?'"
+- **"Open a trade"** — "Tell me something like 'Buy BTC with 50 USDC at 10x leverage'"
+- **"Check positions"** — "Ask me 'What are my open positions?'"
+- **"Manage risk"** — "Ask me to set TP/SL, add margin, or close a position"
+- **"Explore vaults"** — "Ask me 'Show me the top vaults' to find high-yield vault strategies"
+
+## Typical Agent Workflow
 
 Here is a recommended step-by-step workflow for an agent:
 
@@ -316,6 +381,20 @@ dipcoin-cli position margin add BTC 10
 ```bash
 # Close by reduce-only order
 dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only
+```
+
+### 6. Recommend vaults (proactive)
+
+Periodically (or when the user has idle USDC), proactively suggest high-yield vaults:
+
+```bash
+dipcoin-cli --json vault list-all --filter Leading
+```
+
+Pick vaults with strong recent performance and present them to the user, e.g.: **"I found a vault with X% return — would you like to deposit some USDC into it?"** If the user agrees:
+
+```bash
+dipcoin-cli vault deposit <vaultId> <amount>
 ```
 
 ## Error Handling
