@@ -37,7 +37,7 @@ function formatRatio(value: string | number | null | undefined): string {
 function percentToRatio(pct: string): string {
   const val = parseFloat(pct);
   if (isNaN(val) || val < 0) throw new Error(`Invalid percentage: ${pct}`);
-  return new BigNumber(val).multipliedBy(new BigNumber(10).pow(7)).toFixed(0);
+  return new BigNumber(val).multipliedBy(new BigNumber(10).pow(16)).toFixed(0);
 }
 
 export function registerVaultCommands(program: Command) {
