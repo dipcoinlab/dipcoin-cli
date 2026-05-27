@@ -52,6 +52,128 @@ export function registerPositionCommands(program: Command) {
       }
     });
 
+  // Helper: align a human-readable quantity to the market's step size.
+  async function alignToStepSize(sdk: any, symbol: string, qty: number): Promise<number> {
+    let stepSize = 0.001;
+    try {
+      const pairResult = await sdk.getTradingPairs();
+      if (pairResult.status && pairResult.data) {
+        const pair = pairResult.data.find((p: any) => p.symbol === symbol);
+        const raw = pair?.stepSize ?? pair?.minTradeQty;
+        if (raw) {
+          const parsed = parseFloat(raw);
+          if (parsed > 0) stepSize = parsed > 1e10 ? parsed / 1e18 : parsed;
+        }
+      }
+    } catch {
+      // fall through with default stepSize
+    }
+    const stepped = Math.floor(qty / stepSize) * stepSize;
+    const decimals = stepSize < 1 ? Math.ceil(-Math.log10(stepSize)) : 0;
+    return parseFloat(stepped.toFixed(decimals));
+  }
+
+  // Helper: close one position with a reduce-only market order. Returns the API response.
+  async function closeOnePosition(
+    sdk: any,
+    pos: any,
+    percent: number,
+    vault?: string
+  ): Promise<{ ok: boolean; message: string; data?: any }> {
+    const symbol = pos.symbol as string;
+    const sideStr = String(pos.side).toUpperCase();
+    const closingSide = sideStr === "BUY" ? OrderSide.SELL : OrderSide.BUY;
+    const totalQtyHuman = Number(pos.quantity) / 1e18;
+    const wanted = totalQtyHuman * (percent / 100);
+    const aligned = await alignToStepSize(sdk, symbol, wanted);
+    if (aligned <= 0) {
+      return {
+        ok: false,
+        message: `Closing ${percent}% of ${totalQtyHuman} ${symbol} would round to 0 at market step size — try a larger percentage.`,
+      };
+    }
+    const perpId = await sdk.getPerpetualID(symbol);
+    if (!perpId) return { ok: false, message: `PerpetualID not found for ${symbol}` };
+    const leverageHuman = String(Number(pos.leverage) / 1e18);
+    const params: any = {
+      symbol,
+      market: perpId,
+      side: closingSide,
+      orderType: OrderType.MARKET,
+      quantity: String(aligned),
+      leverage: leverageHuman,
+      reduceOnly: true,
+    };
+    if (vault) params.creator = vault;
+    const result = await sdk.placeOrder(params);
+    if (!result.status) return { ok: false, message: result.error || "placeOrder failed" };
+    return {
+      ok: true,
+      message: `Closed ${aligned} ${symbol} (${closingSide} reduce-only).`,
+      data: result.data,
+    };
+  }
+
+  position
+    .command("close")
+    .description("Close a position with a reduce-only market order (default: 100%)")
+    .argument("<symbol>", "Trading pair (e.g. BTC or BTC-PERP)")
+    .option("--percent <n>", "Percent of position to close (1-100, default: 100)", "100")
+    .option("--vault <address>", "Target a vault's position instead of personal")
+    .action(async (symbol, opts) => {
+      try {
+        symbol = normalizeSymbol(symbol);
+        const percent = Number(opts.percent);
+        if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+          return handleError(`--percent must be in (0, 100], got ${opts.percent}`);
+        }
+        const sdk = getSDK();
+        const parentAddress = opts.vault || sdk.address;
+        const result = await sdk.getPositions({ parentAddress, symbol });
+        if (!result.status) return handleError(result.error);
+        const pos = (result.data || []).find((p: any) => p.symbol === symbol);
+        if (!pos) return handleError(`No open position for ${symbol}.`);
+        const r = await closeOnePosition(sdk, pos, percent, opts.vault);
+        if (!r.ok) return handleError(r.message);
+        if (isJson(program)) return printJson(r.data);
+        console.log(r.message);
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
+  position
+    .command("close-all")
+    .description("Close every open position with reduce-only market orders")
+    .option("--percent <n>", "Percent of each position to close (1-100, default: 100)", "100")
+    .option("--vault <address>", "Target vault positions instead of personal")
+    .action(async (opts) => {
+      try {
+        const percent = Number(opts.percent);
+        if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+          return handleError(`--percent must be in (0, 100], got ${opts.percent}`);
+        }
+        const sdk = getSDK();
+        const parentAddress = opts.vault || sdk.address;
+        const result = await sdk.getPositions({ parentAddress });
+        if (!result.status) return handleError(result.error);
+        const positions = result.data || [];
+        if (!positions.length) {
+          if (isJson(program)) return printJson({ closed: 0, results: [] });
+          return console.log("No open positions to close.");
+        }
+        const results: Array<{ symbol: string; ok: boolean; message: string }> = [];
+        for (const pos of positions) {
+          const r = await closeOnePosition(sdk, pos, percent, opts.vault);
+          results.push({ symbol: pos.symbol, ok: r.ok, message: r.message });
+          if (!isJson(program)) console.log(`  ${pos.symbol}: ${r.ok ? "OK" : "FAILED"} — ${r.message}`);
+        }
+        if (isJson(program)) printJson({ closed: results.filter((r) => r.ok).length, results });
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
   position
     .command("tpsl")
     .description("Place TP/SL orders on a position")

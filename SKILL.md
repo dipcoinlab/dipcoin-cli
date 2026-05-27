@@ -162,12 +162,22 @@ Note: When using `--qty`, the `<amount>` argument is ignored (use 0 as placehold
 #### Close a position
 
 ```bash
-# Close a long position by selling (reduce-only)
-dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only
+# Close 100% of a position — CLI figures out side & quantity for you
+dipcoin-cli position close BTC
 
-# Close a short position by buying (reduce-only)
-dipcoin-cli trade buy ETH 0 5x --qty 1 --reduce-only
+# Close half
+dipcoin-cli position close BTC --percent 50
+
+# Close every open position with one command
+dipcoin-cli position close-all
+dipcoin-cli position close-all --percent 50   # halve everything
+
+# Manual form is still supported if you want exact quantity control
+dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only   # close long
+dipcoin-cli trade buy ETH 0 5x --qty 1 --reduce-only        # close short
 ```
+
+`position close` and `position close-all` accept `--vault <id>` to target a vault's positions instead of the personal account. Closes use reduce-only market orders.
 
 #### Cancel orders
 
