@@ -20,23 +20,36 @@ npm install -g dipcoin-cli
 
 ### Configuration
 
-Create a config file at `~/.config/dipcoin/env` (recommended) or `.env` in your working directory:
+Credentials live in `~/.config/dipcoin/env`. Set them up with one of the two built-in commands — both write the file with `chmod 600` and never echo your private key to the terminal.
+
+**Import an existing Sui wallet:**
 
 ```bash
-mkdir -p ~/.config/dipcoin
-cat > ~/.config/dipcoin/env << 'EOF'
-DIPCOIN_PRIVATE_KEY=suiprivkey1...
-DIPCOIN_NETWORK=mainnet
-EOF
+dipcoin-cli setup import                  # mainnet (default)
+dipcoin-cli setup import --network testnet
 ```
+
+You'll be prompted for your `suiprivkey1...` private key with hidden input.
+
+**Or generate a new wallet:**
+
+```bash
+dipcoin-cli setup generate                  # mainnet (default)
+dipcoin-cli setup generate --network testnet
+```
+
+A new Ed25519 keypair is created and saved; the command prints the public Sui address. Transfer USDC on Sui to that address, then run `dipcoin-cli account deposit <amount>` to fund the DEX.
+
+#### Config file format
+
+The generated `~/.config/dipcoin/env` contains:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
-| `DIPCOIN_MNEMONIC` | is required | 12-word Sui mnemonic phrase (derives keypair at `m/44'/784'/0'/0'/0'`) |
+| `DIPCOIN_PRIVATE_KEY` | Yes | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
 | `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
-If both `DIPCOIN_PRIVATE_KEY` and `DIPCOIN_MNEMONIC` are set, the private key takes precedence.
+Manual editing is supported but discouraged — prefer the `setup` commands so format and permissions stay correct.
 
 ### Quick Start
 
@@ -71,6 +84,14 @@ dipcoin-cli history orders --symbol BTC-PERP
 |--------|-------------|
 | `--json` | Output in JSON format (machine-readable) |
 | `-V, --version` | Show version |
+
+#### setup
+
+```bash
+dipcoin-cli setup import                    # Import existing key (hidden prompt)
+dipcoin-cli setup generate                  # Generate new keypair
+dipcoin-cli setup import --network testnet  # Same, on testnet
+```
 
 #### market
 
