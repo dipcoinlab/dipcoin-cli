@@ -1,7 +1,14 @@
 {
   "deployer": "0xf5fe6a868bae59c109f8fa82a139a5302bd11587c811606e9938cf435b0f3906",
-  "packages": ["0x978fed071cca22dd26bec3cf4a5d5a00ab10f39cb8c659bbfdfbec4397241001", "0x3d11bc46bb4fbcdef7d17f69ac10e3a471d8f09cf104f94b5113dc2cd1c44fd2"],
-  "vaultPackage": "0x3d11bc46bb4fbcdef7d17f69ac10e3a471d8f09cf104f94b5113dc2cd1c44fd2",
+  "packages": [
+    "0x978fed071cca22dd26bec3cf4a5d5a00ab10f39cb8c659bbfdfbec4397241001",
+    "0x9645033a540eaa77aaa4b5f0695759a14e8b7c250ea318ef403ce1d96a4a738f",
+    "0x3d11bc46bb4fbcdef7d17f69ac10e3a471d8f09cf104f94b5113dc2cd1c44fd2",
+    "0x857c7c6e50c5e6574966cf110897b99e8a510f8346b0a60a7604fb917b155086",
+    "0x92df31c1b3e14ac7e54d6e606341f36d2743a1cf45119fda4b4efb83d623276f",
+    "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c"
+  ],
+  "vaultPackage": "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c",
   "objects": {
     "ExchangeAdminCap": {
       "id": "0x11d6aebffbd2bd7e149bfa73353d8bfa57942e67da0d730fec65b8c8edaaa7fe",
@@ -92,6 +99,12 @@
       "owner": "Shared",
       "dataType": "0x978fed071cca22dd26bec3cf4a5d5a00ab10f39cb8c659bbfdfbec4397241001::vault::VaultConfig",
       "package_version": 1
+    },
+    "PriceFeed": {
+      "id": "0x7740de52df896ff8296ed010c67c8604669263c43cf43daa685e7188b6a8bbe4",
+      "owner": "Shared",
+      "dataType": "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c::price_feed::PriceFeed",
+      "package_version": 4
     }
   },
   "markets": {

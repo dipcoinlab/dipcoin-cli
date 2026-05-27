@@ -118,11 +118,16 @@ export function registerPositionCommands(program: Command) {
     .description("Add margin to position")
     .argument("<symbol>", "Trading pair")
     .argument("<amount>", "Amount in USDC")
-    .action(async (symbol, amount) => {
+    .option("--vault <address>", "Target a vault's position (vault id) instead of personal account")
+    .action(async (symbol, amount, opts) => {
       try {
         const sdk = getSDK();
         symbol = normalizeSymbol(symbol);
-        const tx = await sdk.addMargin({ symbol, amount: parseAmount(amount) });
+        const tx = await sdk.addMargin({
+          symbol,
+          amount: parseAmount(amount),
+          accountAddress: opts.vault,
+        });
         if (isJson(program)) return printJson({ digest: tx?.digest, status: "ok" });
         console.log(`Added ${amount} margin to ${symbol}. Tx: ${tx?.digest || JSON.stringify(tx)}`);
       } catch (e) {
@@ -135,11 +140,16 @@ export function registerPositionCommands(program: Command) {
     .description("Remove margin from position")
     .argument("<symbol>", "Trading pair")
     .argument("<amount>", "Amount in USDC")
-    .action(async (symbol, amount) => {
+    .option("--vault <address>", "Target a vault's position (vault id) instead of personal account")
+    .action(async (symbol, amount, opts) => {
       try {
         const sdk = getSDK();
         symbol = normalizeSymbol(symbol);
-        const tx = await sdk.removeMargin({ symbol, amount: parseAmount(amount) });
+        const tx = await sdk.removeMargin({
+          symbol,
+          amount: parseAmount(amount),
+          accountAddress: opts.vault,
+        });
         if (isJson(program)) return printJson({ digest: tx?.digest, status: "ok" });
         console.log(
           `Removed ${amount} margin from ${symbol}. Tx: ${tx?.digest || JSON.stringify(tx)}`

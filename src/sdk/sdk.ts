@@ -2070,10 +2070,9 @@ export class DipCoinPerpSDK {
     action: "add" | "remove"
   ): Promise<Transaction | undefined> {
     const payload = this.buildMarginCallArgs(params, action);
-    const updatePriceTx = payload.market
-      ? await this.buildUpdatePriceTransaction(payload.market)
-      : undefined;
-    const baseTx = updatePriceTx || new Transaction();
+    // v6+ uses add_margin_v3/remove_margin_v3 which read &PriceFeed (a shared object
+    // maintained off-band by an operator). No Pyth update is needed on the user-side tx.
+    const baseTx = new Transaction();
     if (action === "add") {
       return buildAddMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
     }
@@ -2410,48 +2409,51 @@ export class DipCoinPerpSDK {
     return id;
   }
 
+  private getPriceFeedId(): string {
+    const id = this.deploymentConfig?.objects?.PriceFeed?.id;
+    if (!id) {
+      throw new Error(
+        "Deployment config missing PriceFeed id. Add objects.PriceFeed to the network's main_contract.json — required for v6+ vault/margin writes."
+      );
+    }
+    return id;
+  }
+
+  private async getOnChainPerpetualIds(): Promise<string[]> {
+    const pcId = this.getDeploymentProtocolConfigId();
+    const df = await this.suiClient.getDynamicFieldObject({
+      parentId: pcId,
+      name: {
+        type: "vector<u8>",
+        value: Array.from(Buffer.from("perpetual_registry", "utf8")),
+      },
+    });
+    const content = df.data?.content as { fields?: { value?: { fields?: { perpetuals?: { fields?: { contents?: unknown } } } } } } | undefined;
+    const contents = content?.fields?.value?.fields?.perpetuals?.fields?.contents;
+    if (!Array.isArray(contents)) {
+      throw new Error(
+        "Could not read perpetual_registry from on-chain ProtocolConfig. Vault NAV requires the full list of perpetuals registered in the protocol."
+      );
+    }
+    return contents as string[];
+  }
+
   private async buildVaultNavTransaction(
     vaultID: string,
-    markets?: string[],
+    _markets?: string[],
     tx?: Transaction
   ): Promise<{ nav: any; tx: Transaction }> {
     const t = tx || new Transaction();
     const vaultPkg = this.getVaultPackageId();
     const currencyType = this.getCurrencyType();
 
-    const symbols = markets && markets.length > 0 ? markets : this.getMarketSymbols();
-
-    if (this.options.network === "mainnet") {
-      // On mainnet, use Pyth to fetch fresh price VAAs and update on-chain oracles
-      this.ensurePythClients();
-      if (this.priceServiceConnection && this.pythClient) {
-        const priceIds: string[] = [];
-        for (const sym of symbols) {
-          const feedId = await this.resolvePriceFeedId(sym);
-          if (feedId) priceIds.push(feedId);
-        }
-        if (priceIds.length > 0) {
-          const priceUpdateData = await this.priceServiceConnection.getPriceFeedsUpdateData(priceIds);
-          await this.pythClient.updatePriceFeeds(t, priceUpdateData, priceIds);
-        }
-      }
-    } else {
-      // On testnet, prepend price oracle updates so PriceInfoObjects are fresh
-      const prices: { price: number; confidence?: string; market?: string }[] = [];
-      for (const sym of symbols) {
-        try {
-          const oraclePrice = await getOnChainOraclePrice(this.suiClient, this.deploymentConfig, sym);
-          if (oraclePrice !== undefined && oraclePrice !== null) {
-            prices.push({ price: Number(oraclePrice), market: sym });
-          }
-        } catch {
-          // skip symbols where oracle price is unavailable
-        }
-      }
-      if (prices.length > 0) {
-        buildBatchSetOraclePriceTx(this.deploymentConfig, { prices }, t);
-      }
-    }
+    // v6+: PriceFeed is a single shared object maintained by an operator off-band.
+    // new_vault_nav populates `perpetuals` from ProtocolConfig.perpetual_registry, and
+    // is_nav_filled requires EVERY registered perpetual to have a position value entry.
+    // So we must compute against the on-chain registry, not the local deployment.markets
+    // list (which can drift behind chain additions).
+    const priceFeedId = this.getPriceFeedId();
+    const perpetualIds = await this.getOnChainPerpetualIds();
 
     const [nav] = t.moveCall({
       target: `${vaultPkg}::vault::new_vault_nav`,
@@ -2464,12 +2466,10 @@ export class DipCoinPerpSDK {
       typeArguments: [currencyType],
     });
 
-    for (const sym of symbols) {
-      const perpId = this.getVaultPerpetualId(sym);
-      const priceInfoId = this.getVaultPriceInfoObjectId(sym);
+    for (const perpId of perpetualIds) {
       t.moveCall({
-        target: `${vaultPkg}::vault::compute_perpetual_position_value`,
-        arguments: [nav, t.object("0x6"), t.object(perpId), t.object(priceInfoId)],
+        target: `${vaultPkg}::vault::compute_perpetual_position_value_v2`,
+        arguments: [nav, t.object("0x6"), t.object(perpId), t.object(priceFeedId)],
         typeArguments: [],
       });
     }

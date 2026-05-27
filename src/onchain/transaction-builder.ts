@@ -53,6 +53,16 @@ function getPerpetualId(deployment: any, market?: string): string {
   return id;
 }
 
+function getPriceFeedId(deployment: any): string {
+  const id = deployment?.objects?.PriceFeed?.id;
+  if (!id) {
+    throw new Error(
+      "Deployment config missing PriceFeed id. Add objects.PriceFeed to the network's main_contract.json — required for v6+ on-chain margin/vault writes."
+    );
+  }
+  return id;
+}
+
 function getPriceOracleObjectId(deployment: any, market?: string): string {
   const m = market?.toUpperCase() || "ETH-PERP";
   const id = deployment?.markets?.[m]?.Objects?.PriceInfoObject?.id;
@@ -112,7 +122,7 @@ export function buildAddMarginTx(
 
   const packageId = getPackageId(deployment);
   t.moveCall({
-    target: `${packageId}::exchange::add_margin_v2`,
+    target: `${packageId}::exchange::add_margin_v3`,
     arguments: [
       t.object(getProtocolConfigId(deployment)),
       t.object(CLOCK_OBJECT_ID),
@@ -120,7 +130,7 @@ export function buildAddMarginTx(
       t.object(getBankId(deployment)),
       t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
       t.object(getTxIndexerId(deployment)),
-      t.object(getPriceOracleObjectId(deployment, args.market)),
+      t.object(getPriceFeedId(deployment)),
       t.pure.address(args.account || sender || ""),
       t.pure.u128(args.amount.toString()),
     ],
@@ -148,7 +158,7 @@ export function buildRemoveMarginTx(
 
   const packageId = getPackageId(deployment);
   t.moveCall({
-    target: `${packageId}::exchange::remove_margin_v2`,
+    target: `${packageId}::exchange::remove_margin_v3`,
     arguments: [
       t.object(getProtocolConfigId(deployment)),
       t.object(CLOCK_OBJECT_ID),
@@ -156,7 +166,7 @@ export function buildRemoveMarginTx(
       t.object(getBankId(deployment)),
       t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
       t.object(getTxIndexerId(deployment)),
-      t.object(getPriceOracleObjectId(deployment, args.market)),
+      t.object(getPriceFeedId(deployment)),
       t.pure.address(args.account || sender || ""),
       t.pure.u128(args.amount.toString()),
     ],
