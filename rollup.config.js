@@ -25,10 +25,13 @@ var rollup_config = [
     external: [
       "axios",
       "@mysten/sui",
+      "@mysten/sui/cryptography",
       "@mysten/sui/keypairs/ed25519",
       "@mysten/sui/transactions",
       "@mysten/sui/utils",
       "@pythnetwork/pyth-sui-js",
+      "@scure/bip39",
+      "@scure/bip39/wordlists/english.js",
       "bignumber.js",
       "buffer",
       "node:buffer",

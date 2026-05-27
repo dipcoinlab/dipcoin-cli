@@ -32,7 +32,12 @@ dipcoin-cli setup import                  # mainnet (default)
 dipcoin-cli setup import --network testnet
 ```
 
-The command interactively prompts for the private key with **hidden input** (the typed/pasted characters are not echoed). The user enters their `suiprivkey1...` string at the prompt; it is validated and written to `~/.config/dipcoin/env`.
+The command interactively prompts with **hidden input** (typed/pasted characters are not echoed). The user can paste **either** a private key (`suiprivkey1...`) **or** a BIP39 mnemonic (12/15/18/21/24 words from the English wordlist). The input is auto-detected and validated:
+
+- Private keys are decoded via the Sui bech32 scheme.
+- Mnemonics are validated against the BIP39 English wordlist **and** the checksum; invalid mnemonics are rejected.
+
+The validated credential is written to `~/.config/dipcoin/env` as `DIPCOIN_PRIVATE_KEY` or `DIPCOIN_MNEMONIC` accordingly.
 
 ### Option B — Generate a new key
 
@@ -51,10 +56,11 @@ The file `~/.config/dipcoin/env` contains:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DIPCOIN_PRIVATE_KEY` | Yes | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
+| `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
+| `DIPCOIN_MNEMONIC` | is required | 12/15/18/21/24-word BIP39 mnemonic (derives ED25519 keypair at `m/44'/784'/0'/0'/0'`) |
 | `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
-Manual editing of the file is supported but discouraged — prefer the `setup` commands so permissions and format stay correct.
+If both are set, `DIPCOIN_PRIVATE_KEY` takes precedence. Manual editing is supported but discouraged — prefer the `setup` commands so permissions and format stay correct.
 
 ## Global Options
 
@@ -294,7 +300,7 @@ dipcoin-cli --version
 Check if the config file exists and has a real key:
 
 ```bash
-test -s ~/.config/dipcoin/env && grep -q '^DIPCOIN_PRIVATE_KEY=suiprivkey1' ~/.config/dipcoin/env && echo OK || echo MISSING
+test -s ~/.config/dipcoin/env && grep -qE '^DIPCOIN_(PRIVATE_KEY=suiprivkey1|MNEMONIC=\S)' ~/.config/dipcoin/env && echo OK || echo MISSING
 ```
 
 If it prints `MISSING`, the user has no credentials yet. **Ask the user to pick one of the two setup paths** — do not pick for them, and do not skip this choice:

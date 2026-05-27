@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+import { validateMnemonic } from "@scure/bip39";
+import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 import path from "path";
 import os from "os";
 import fs from "fs";
@@ -76,15 +78,28 @@ function readHiddenInput(prompt: string): Promise<string> {
   });
 }
 
-function writeEnvFile(privateKey: string, network: "mainnet" | "testnet") {
+type Credential = { kind: "privateKey"; value: string } | { kind: "mnemonic"; value: string };
+
+function writeEnvFile(cred: Credential, network: "mainnet" | "testnet") {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  const content = `DIPCOIN_PRIVATE_KEY=${privateKey}\nDIPCOIN_NETWORK=${network}\n`;
+  const line =
+    cred.kind === "privateKey"
+      ? `DIPCOIN_PRIVATE_KEY=${cred.value}`
+      : `DIPCOIN_MNEMONIC=${cred.value}`;
+  const content = `${line}\nDIPCOIN_NETWORK=${network}\n`;
   fs.writeFileSync(ENV_PATH, content, { mode: 0o600 });
   try {
     fs.chmodSync(ENV_PATH, 0o600);
   } catch {
     // best-effort on platforms without POSIX perms
   }
+}
+
+const VALID_MNEMONIC_WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
+
+function looksLikeMnemonic(input: string): boolean {
+  const words = input.split(/\s+/).filter(Boolean);
+  return VALID_MNEMONIC_WORD_COUNTS.has(words.length);
 }
 
 function resolveNetwork(input: unknown): "mainnet" | "testnet" {
@@ -98,7 +113,7 @@ export function registerSetupCommands(program: Command) {
 
   setup
     .command("import")
-    .description("Import an existing Sui private key (interactive, hidden input)")
+    .description("Import an existing Sui private key or mnemonic (interactive, hidden input)")
     .option("--network <network>", "mainnet | testnet", "mainnet")
     .action(async (opts) => {
       try {
@@ -107,26 +122,56 @@ export function registerSetupCommands(program: Command) {
           console.error("Aborted.");
           process.exit(1);
         }
-        const key = (await readHiddenInput("Paste your Sui private key (suiprivkey1...): ")).trim();
-        if (!key) {
+        const raw = (
+          await readHiddenInput("Paste your Sui private key (suiprivkey1...) or 12-word mnemonic: ")
+        ).trim();
+        if (!raw) {
           console.error("No input provided.");
           process.exit(1);
         }
-        if (!key.startsWith("suiprivkey1")) {
-          console.error("Invalid format. Sui private keys must start with 'suiprivkey1'.");
-          process.exit(1);
-        }
+
+        let cred: Credential;
         let address: string;
-        try {
-          decodeSuiPrivateKey(key);
-          address = fromExportedKeypair(key).toSuiAddress();
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          console.error(`Failed to decode private key: ${msg}`);
+
+        if (raw.startsWith("suiprivkey1")) {
+          try {
+            decodeSuiPrivateKey(raw);
+            address = fromExportedKeypair(raw).toSuiAddress();
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`Failed to decode private key: ${msg}`);
+            process.exit(1);
+          }
+          cred = { kind: "privateKey", value: raw };
+        } else if (looksLikeMnemonic(raw)) {
+          const normalized = raw.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
+          if (!validateMnemonic(normalized, englishWordlist)) {
+            console.error(
+              "Invalid mnemonic: words must be from the BIP39 English wordlist and the checksum must match."
+            );
+            process.exit(1);
+          }
+          try {
+            address = Ed25519Keypair.deriveKeypair(
+              normalized,
+              `m/44'/784'/0'/0'/0'`
+            ).toSuiAddress();
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`Failed to derive keypair from mnemonic: ${msg}`);
+            process.exit(1);
+          }
+          cred = { kind: "mnemonic", value: normalized };
+        } else {
+          console.error(
+            "Unrecognized format. Expected a Sui private key (starts with 'suiprivkey1') or a 12/15/18/21/24-word mnemonic."
+          );
           process.exit(1);
         }
-        writeEnvFile(key, network);
+
+        writeEnvFile(cred, network);
         console.log(`Saved to ${ENV_PATH} (chmod 600).`);
+        console.log(`Type: ${cred.kind === "privateKey" ? "private key" : "mnemonic"}`);
         console.log(`Network: ${network}`);
         console.log(`Address: ${address}`);
       } catch (e) {
@@ -150,7 +195,7 @@ export function registerSetupCommands(program: Command) {
         const kp = new Ed25519Keypair();
         const privateKey = kp.getSecretKey();
         const address = kp.toSuiAddress();
-        writeEnvFile(privateKey, network);
+        writeEnvFile({ kind: "privateKey", value: privateKey }, network);
         console.log(`Generated new keypair and saved to ${ENV_PATH} (chmod 600).`);
         console.log(`Network: ${network}`);
         console.log(`Address: ${address}`);

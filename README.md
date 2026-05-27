@@ -29,7 +29,7 @@ dipcoin-cli setup import                  # mainnet (default)
 dipcoin-cli setup import --network testnet
 ```
 
-You'll be prompted for your `suiprivkey1...` private key with hidden input.
+Paste either your `suiprivkey1...` private key **or** a 12-word (or 15/18/21/24) BIP39 mnemonic at the hidden prompt. The input is auto-detected; mnemonics are validated against the BIP39 wordlist and checksum.
 
 **Or generate a new wallet:**
 
@@ -46,10 +46,11 @@ The generated `~/.config/dipcoin/env` contains:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DIPCOIN_PRIVATE_KEY` | Yes | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
+| `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
+| `DIPCOIN_MNEMONIC` | is required | 12/15/18/21/24-word BIP39 mnemonic |
 | `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
-Manual editing is supported but discouraged — prefer the `setup` commands so format and permissions stay correct.
+If both are set, `DIPCOIN_PRIVATE_KEY` takes precedence. Manual editing is supported but discouraged — prefer the `setup` commands so format and permissions stay correct.
 
 ### Quick Start
 
