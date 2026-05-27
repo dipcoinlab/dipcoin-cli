@@ -326,11 +326,14 @@ export function registerVaultCommands(program: Command) {
 
   // === vault fill ===
   vault
-    .command("fill")
-    .description("Fill pending withdrawal requests (e.g. vault fill <vaultId> <requestIDs...>)")
+    .command("fill-withdrawals")
+    .alias("fill")
+    .description(
+      "Fill pending withdrawal requests (creator/operator only) — e.g. vault fill-withdrawals <vaultId> <requestIDs...>"
+    )
     .argument("<vaultId>", "Vault object ID")
     .argument("<requestIDs...>", "Withdrawal request object IDs")
-    .option("--markets <ids>", "Comma-separated market PerpetualIDs for share price update")
+    .option("--markets <ids>", "Comma-separated market PerpetualIDs (deprecated; NAV now uses on-chain registry)")
     .action(async (vaultId, requestIDs, opts) => {
       try {
         const sdk = getSDK();

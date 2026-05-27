@@ -107,4 +107,52 @@ export function registerMarketCommands(program: Command) {
         handleError(e);
       }
     });
+
+  market
+    .command("kline")
+    .description("Get kline (candlestick) history for a symbol")
+    .argument("<symbol>", "Trading pair")
+    .option(
+      "--interval <i>",
+      "Bar interval: 1m / 5m / 15m / 30m / 1h / 4h / 1d / 1w (default: 1h)",
+      "1h"
+    )
+    .option("--from <ts>", "Start unix timestamp in seconds (default: 24h ago)")
+    .option("--to <ts>", "End unix timestamp in seconds (default: now)")
+    .option("--count <n>", "Cap on number of bars returned (most recent first)")
+    .action(async (symbol, opts) => {
+      try {
+        symbol = normalizeSymbol(symbol);
+        const now = Math.floor(Date.now() / 1000);
+        const from = opts.from !== undefined ? Number(opts.from) : now - 86400;
+        const to = opts.to !== undefined ? Number(opts.to) : now;
+        const countback = opts.count !== undefined ? Number(opts.count) : undefined;
+        const sdk = getSDK();
+        const result = await sdk.getKlineHistory({
+          symbol,
+          interval: String(opts.interval),
+          from,
+          to,
+          countback,
+        });
+        if (!result.status || !result.data) return handleError(result.error);
+
+        if (isJson(program)) return printJson(result.data);
+
+        if (!result.data.length) return console.log("No bars.");
+        printTable(
+          ["Time (UTC)", "Open", "High", "Low", "Close", "Volume"],
+          result.data.map((b) => [
+            new Date(b.time * 1000).toISOString().replace("T", " ").slice(0, 16),
+            b.open,
+            b.high,
+            b.low,
+            b.close,
+            b.volume,
+          ])
+        );
+      } catch (e) {
+        handleError(e);
+      }
+    });
 }

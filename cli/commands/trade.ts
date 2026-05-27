@@ -150,6 +150,31 @@ export function registerTradeCommands(program: Command) {
   );
 
   trade
+    .command("leverage")
+    .description("Adjust default leverage for a market (e.g. trade leverage BTC 10)")
+    .argument("<symbol>", "Trading pair (e.g. BTC or BTC-PERP)")
+    .argument("<leverage>", "Leverage multiplier (e.g. 10 or 10x)")
+    .action(async (symbol, leverage) => {
+      try {
+        symbol = normalizeSymbol(symbol);
+        const lev = Number(String(leverage).replace(/x$/i, ""));
+        if (!Number.isFinite(lev) || lev <= 0) return handleError(`Invalid leverage: ${leverage}`);
+        const sdk = getSDK();
+        // Only ISOLATED margin is supported by the backend today.
+        const result = await sdk.adjustLeverage({
+          symbol,
+          leverage: lev,
+          marginType: "ISOLATED",
+        });
+        if (!result.status) return handleError(result.error);
+        if (isJson(program)) return printJson(result.data);
+        console.log(`Leverage for ${symbol} set to ${lev}x (ISOLATED).`);
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
+  trade
     .command("cancel")
     .description("Cancel orders by hash")
     .argument("<symbol>", "Trading pair")

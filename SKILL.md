@@ -93,9 +93,16 @@ dipcoin-cli --json market orderbook BTC
 
 # Get oracle price
 dipcoin-cli --json market oracle BTC
+
+# Get kline (candlestick) history — default: 1h interval, last 24h
+dipcoin-cli --json market kline BTC
+dipcoin-cli --json market kline BTC --interval 5m --count 10
+dipcoin-cli --json market kline BTC --interval 1d --from 1779000000 --to 1779800000
 ```
 
 Symbols auto-normalize: `BTC` becomes `BTC-PERP`. You can use either form.
+
+`market kline` supports intervals: `1m / 5m / 15m / 30m / 1h / 4h / 1d / 1w`. `--from` and `--to` are unix seconds (default: last 24h). `--count` caps the number of bars returned (most recent first).
 
 ### Account Information
 
@@ -168,6 +175,16 @@ dipcoin-cli trade buy ETH 0 5x --qty 1 --reduce-only
 dipcoin-cli trade cancel <symbol> <hash1> [hash2...]
 ```
 
+#### Adjust default leverage
+
+```bash
+# Set default (ISOLATED) leverage for a market — used by future orders that don't pass an explicit value
+dipcoin-cli trade leverage BTC 10
+dipcoin-cli trade leverage ETH 5
+```
+
+Off-chain REST update — only changes the user's preferred leverage, no on-chain tx. The DipCoin perp currently runs ISOLATED margin only; CROSS is not supported.
+
 #### Trade options summary
 
 | Option | Description |
@@ -199,7 +216,13 @@ dipcoin-cli position tpsl BTC --side sell --quantity 0.01 --leverage 10 \
 # Add/remove margin on a position
 dipcoin-cli position margin add BTC 5
 dipcoin-cli position margin remove BTC 2
+
+# Same, but target a position held by a vault (use the vault's object ID)
+dipcoin-cli position margin add BTC 5 --vault <vaultId>
+dipcoin-cli position margin remove BTC 2 --vault <vaultId>
 ```
+
+> **On-chain note:** `position margin add/remove`, `vault deposit/close/withdraw/claim`, and `vault fill-withdrawals` all need a freshly-signed price feed. The SDK automatically fetches one from the public `/api/perp-market-api/price/latest` endpoint and prepends a `price_feed::update_price_feed` PTB step before the real call — no extra setup needed from the user.
 
 ### Open Orders
 
@@ -253,6 +276,9 @@ dipcoin-cli vault deposit <vaultId> <amount>
 dipcoin-cli vault withdraw <vaultId> <shares>
 dipcoin-cli vault withdraw <vaultId> --all   # withdraw all shares
 
+# Fill pending withdrawal requests (creator/operator only)
+dipcoin-cli vault fill-withdrawals <vaultId> <requestID1> [requestID2...]
+
 # Manage vault
 dipcoin-cli vault set-trader <vaultId> <address>
 dipcoin-cli vault set-deposit-status <vaultId>          # enable
@@ -261,7 +287,7 @@ dipcoin-cli vault set-max-cap <vaultId> <amount>
 dipcoin-cli vault set-min-deposit <vaultId> <amount>
 dipcoin-cli vault set-auto-close <vaultId>
 dipcoin-cli vault close <vaultId>
-dipcoin-cli vault remove <vaultId>
+dipcoin-cli vault remove <vaultId>     # operator-only; normal creators get "unauthorized"
 dipcoin-cli vault claim <vaultId>
 ```
 

@@ -28,6 +28,8 @@ export const API_ENDPOINTS = {
   FUNDING_SETTLEMENTS: "/api/perp-trade-api/history/funding-settlements",
   BALANCE_CHANGES: "/api/perp-trade-api/history/balance-changes",
   ORACLE: "/api/perp-market-api/oracle",
+  SIGNED_PRICE_LATEST: "/api/perp-market-api/price/latest",
+  KLINE_HISTORY: "/api/perp-market-api/kline/history",
   VAULTS_BY_CREATOR: "/api/perp-vault-api/public/vaults/by-creator",
   VAULTS_PUBLIC: "/api/perp-vault-api/public/vaults",
   // Points & Referral

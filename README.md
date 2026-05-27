@@ -101,9 +101,12 @@ dipcoin-cli market pairs                    # List all trading pairs
 dipcoin-cli market ticker <symbol>          # Ticker (price, volume, funding)
 dipcoin-cli market orderbook <symbol>       # Order book
 dipcoin-cli market oracle <symbol>          # Oracle price
+dipcoin-cli market kline <symbol>           # Candlestick history (default 1h, last 24h)
+dipcoin-cli market kline BTC --interval 5m --count 20
+dipcoin-cli market kline BTC --interval 1d --from <unix-sec> --to <unix-sec>
 ```
 
-Symbols auto-normalize: `BTC` becomes `BTC-PERP`.
+Symbols auto-normalize: `BTC` becomes `BTC-PERP`. `kline` intervals: `1m / 5m / 15m / 30m / 1h / 4h / 1d / 1w`.
 
 #### account
 
@@ -145,7 +148,13 @@ dipcoin-cli trade orders --symbol BTC-PERP
 
 # Cancel orders
 dipcoin-cli trade cancel <symbol> <hash1> [hash2...]
+
+# Adjust default (ISOLATED) leverage for a market (REST update, no on-chain tx)
+dipcoin-cli trade leverage BTC 10
+dipcoin-cli trade leverage ETH 5
 ```
+
+DipCoin perp currently only supports ISOLATED margin; CROSS is not exposed by the backend.
 
 **Trade Options:**
 
@@ -172,12 +181,18 @@ dipcoin-cli position tpsl <symbol> --side <buy|sell> --quantity <q> --leverage <
 dipcoin-cli position tpsl <symbol> --side sell --quantity 0.01 --leverage 10 \
   --tp-trigger 105000 --tp-type limit --tp-price 105000
 
-# Margin operations (on-chain)
+# Margin operations (on-chain) — auto-prepends a fresh signed price update
 dipcoin-cli position margin add <symbol> <amount>
 dipcoin-cli position margin remove <symbol> <amount>
+
+# Same, but target a vault's position
+dipcoin-cli position margin add <symbol> <amount> --vault <vaultId>
+dipcoin-cli position margin remove <symbol> <amount> --vault <vaultId>
 ```
 
 The `--side` is the **closing side**: use `sell` for long positions, `buy` for short.
+
+> All on-chain margin / vault writes (`position margin add/remove`, `vault deposit/close/withdraw/claim/fill-withdrawals`) fetch a fresh signed price from `/api/perp-market-api/price/latest` and bundle a `price_feed::update_price_feed` PTB step before the actual call — required by the v6 oracle freshness check.
 
 #### vault
 
@@ -197,9 +212,9 @@ dipcoin-cli vault position <vaultId> --address <addr>  # Query another address
 dipcoin-cli vault deposit <vaultId> <amount>
 dipcoin-cli vault withdraw <vaultId> <shares>
 dipcoin-cli vault withdraw <vaultId> --all # Withdraw all shares
-dipcoin-cli vault fill <vaultId> <requestIDs...> [--markets <ids>]
-dipcoin-cli vault close <vaultId> [--markets <ids>]
-dipcoin-cli vault remove <vaultId>
+dipcoin-cli vault fill-withdrawals <vaultId> <requestIDs...>   # creator/operator only
+dipcoin-cli vault close <vaultId>
+dipcoin-cli vault remove <vaultId>                              # operator-only (normal creators get "unauthorized")
 dipcoin-cli vault claim <vaultId>
 dipcoin-cli vault set-trader <vaultId> <address>
 dipcoin-cli vault set-sub-trader <vaultId> <address> [--disable]

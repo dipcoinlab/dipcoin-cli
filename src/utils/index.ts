@@ -160,7 +160,9 @@ export function formatNormalToWei(value: number | string, decimals = 18): string
  * @returns BigNumber instance
  */
 export function formatNormalToWeiBN(value: number | string, decimals = 18): BigNumber {
+  if (!value && value !== 0) return new BigNumber(0);
   const bn = new BigNumber(value);
+  if (bn.isNaN()) return new BigNumber(0);
   return bn.multipliedBy(new BigNumber(10).pow(decimals));
 }
 

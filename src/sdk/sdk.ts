@@ -1976,6 +1976,83 @@ export class DipCoinPerpSDK {
   }
 
   /**
+   * Fetch kline (candlestick) history for a market.
+   *
+   * @param params.symbol    Trading pair (e.g. "BTC-PERP")
+   * @param params.interval  Bar interval (e.g. "1m" / "5m" / "1h" / "1d")
+   * @param params.from      Inclusive start timestamp (Unix seconds)
+   * @param params.to        Exclusive end timestamp (Unix seconds)
+   * @param params.countback Optional cap on returned bars (most recent first)
+   */
+  async getKlineHistory(params: {
+    symbol: string;
+    interval: string;
+    from?: number;
+    to?: number;
+    countback?: number;
+  }): Promise<
+    SDKResponse<
+      Array<{ time: number; open: string; high: string; low: string; close: string; volume: string }>
+    >
+  > {
+    try {
+      if (!params?.symbol) return { status: false, error: "symbol is required" };
+      if (!params?.interval) return { status: false, error: "interval is required" };
+      // Server requires both startTime and endTime in unix seconds.
+      const nowSec = Math.floor(Date.now() / 1000);
+      const startTime = params.from ?? nowSec - 86400;
+      const endTime = params.to ?? nowSec;
+      const response = await this.httpClient.get<any>(API_ENDPOINTS.KLINE_HISTORY, {
+        params: {
+          symbol: params.symbol,
+          interval: params.interval,
+          startTime,
+          endTime,
+          ...(params.countback !== undefined ? { countback: params.countback } : {}),
+        },
+      });
+      if (response.code !== 200) {
+        return { status: false, error: response.message || `code ${response.code}` };
+      }
+      const raw: any[] = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
+      const weiToNormal = (v: unknown): string => {
+        if (v === undefined || v === null || v === "") return "0";
+        const bn = new BigNumber(String(v));
+        if (!bn.isFinite() || bn.isZero()) return "0";
+        return bn.dividedBy(new BigNumber(10).pow(18)).toString();
+      };
+      const bars = raw.map((row) => {
+        if (Array.isArray(row)) {
+          const [time, open, high, low, close, volume] = row;
+          return {
+            time: Number(time ?? 0),
+            open: weiToNormal(open),
+            high: weiToNormal(high),
+            low: weiToNormal(low),
+            close: weiToNormal(close),
+            volume: weiToNormal(volume),
+          };
+        }
+        return {
+          time: Number(row.time ?? row.timestamp ?? 0),
+          open: weiToNormal(row.open),
+          high: weiToNormal(row.high),
+          low: weiToNormal(row.low),
+          close: weiToNormal(row.close),
+          volume: weiToNormal(row.volume ?? row.vol),
+        };
+      });
+      return { status: true, data: bars };
+    } catch (error) {
+      return { status: false, error: formatError(error) };
+    }
+  }
+
+  /**
    * Add isolated margin to an existing position (on-chain)
    * @param params Margin adjustment parameters
    */
@@ -2070,9 +2147,13 @@ export class DipCoinPerpSDK {
     action: "add" | "remove"
   ): Promise<Transaction | undefined> {
     const payload = this.buildMarginCallArgs(params, action);
-    // v6+ uses add_margin_v3/remove_margin_v3 which read &PriceFeed (a shared object
-    // maintained off-band by an operator). No Pyth update is needed on the user-side tx.
+    // v6+ requires PriceFeed to be fresh (~60s) before the margin call. Operator updates
+    // are only hourly so we always fetch + prepend our own update_price_feed step.
+    const sym = payload.market || params.symbol;
+    if (!sym) throw new Error("symbol/market required to refresh PriceFeed before margin op");
+    const feeds = await this.fetchSignedPriceFeeds([sym]);
     const baseTx = new Transaction();
+    this.appendPriceFeedUpdates(baseTx, Array.from(feeds.values()));
     if (action === "add") {
       return buildAddMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
     }
@@ -2419,6 +2500,76 @@ export class DipCoinPerpSDK {
     return id;
   }
 
+  /**
+   * Fetch signed price update bytes for the given markets from the DipCoin pricing service.
+   * Each entry's payload/signature/publicKey is consumed by
+   * `<pkg>::price_feed::update_price_feed(PriceFeed, Clock, payload, signature, publicKey)`.
+   *
+   * The on-chain v6 contract requires the PriceFeed entry for a perp to be fresh (~60s)
+   * for any margin/vault NAV write. The CLI prepends one update_price_feed call per
+   * perp involved in the tx before the actual margin/vault call.
+   */
+  private async fetchSignedPriceFeeds(
+    symbols: string[]
+  ): Promise<Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>> {
+    const out = new Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>();
+    if (symbols.length === 0) return out;
+    const qs = symbols.map((s) => `symbols=${encodeURIComponent(s)}`).join("&");
+    const resp = await this.httpClient.get<{
+      priceList?: { symbol: string }[];
+      payload?: string;
+      signature?: string;
+      publicKey?: string;
+    }>(`${API_ENDPOINTS.SIGNED_PRICE_LATEST}?${qs}`);
+    if (resp.code !== 200 || !resp.data) {
+      throw new Error(
+        `Failed to fetch signed price feed for [${symbols.join(",")}]: ${resp.message || `code ${resp.code}`}`
+      );
+    }
+    const d = resp.data;
+    const b64 = (s: string): Uint8Array =>
+      Uint8Array.from(Buffer.from(s, "base64"));
+    if (!d.payload || !d.signature || !d.publicKey) {
+      throw new Error("Signed price feed response missing payload/signature/publicKey");
+    }
+    const entry = { payload: b64(d.payload), signature: b64(d.signature), publicKey: b64(d.publicKey) };
+    // API returns a single bundle covering all requested symbols' prices in priceList,
+    // but only one (payload, signature, publicKey) tuple. Map every requested symbol to it.
+    for (const sym of symbols) out.set(sym, entry);
+    return out;
+  }
+
+  /**
+   * Build a `price_feed::update_price_feed` PTB command for each provided signed feed
+   * entry and append to the given transaction.
+   */
+  private appendPriceFeedUpdates(
+    tx: Transaction,
+    feeds: { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }[]
+  ): void {
+    const pkg = this.getPackageId();
+    const pfId = this.getPriceFeedId();
+    for (const f of feeds) {
+      tx.moveCall({
+        target: `${pkg}::price_feed::update_price_feed`,
+        arguments: [
+          tx.object(pfId),
+          tx.object("0x6"),
+          tx.pure.vector("u8", Array.from(f.payload)),
+          tx.pure.vector("u8", Array.from(f.signature)),
+          tx.pure.vector("u8", Array.from(f.publicKey)),
+        ],
+        typeArguments: [],
+      });
+    }
+  }
+
+  private getPackageId(): string {
+    const pkgs = this.deploymentConfig?.packages;
+    if (!pkgs || !pkgs.length) throw new Error("Deployment config missing packages array");
+    return pkgs[pkgs.length - 1];
+  }
+
   private async getOnChainPerpetualIds(): Promise<string[]> {
     const pcId = this.getDeploymentProtocolConfigId();
     const df = await this.suiClient.getDynamicFieldObject({
@@ -2447,12 +2598,17 @@ export class DipCoinPerpSDK {
     const vaultPkg = this.getVaultPackageId();
     const currencyType = this.getCurrencyType();
 
-    // v6+: PriceFeed is a single shared object maintained by an operator off-band.
-    // new_vault_nav populates `perpetuals` from ProtocolConfig.perpetual_registry, and
-    // is_nav_filled requires EVERY registered perpetual to have a position value entry.
-    // So we must compute against the on-chain registry, not the local deployment.markets
-    // list (which can drift behind chain additions).
+    // v6+: PriceFeed must be fresh for every perp whose value compute_perpetual_position_value_v2
+    // will touch. Refresh ALL markets first by fetching one combined signed bundle and prepending
+    // a single update_price_feed step. Then iterate the on-chain perpetual_registry (which is
+    // what new_vault_nav populates, and is_nav_filled requires every entry to be computed).
     const priceFeedId = this.getPriceFeedId();
+    const allSymbols = this.getMarketSymbols();
+    const feeds = await this.fetchSignedPriceFeeds(allSymbols);
+    // Dedup the bundle entries (the API returns one tuple covering all requested symbols).
+    const uniqFeeds = Array.from(new Map(Array.from(feeds.values()).map((f) => [Buffer.from(f.payload).toString("hex"), f])).values());
+    this.appendPriceFeedUpdates(t, uniqFeeds);
+
     const perpetualIds = await this.getOnChainPerpetualIds();
 
     const [nav] = t.moveCall({
