@@ -7,6 +7,7 @@ import { registerHistoryCommands } from "./commands/history";
 import { registerVaultCommands } from "./commands/vault";
 import { registerBalanceCommand } from "./commands/balance";
 import { registerReferralCommands } from "./commands/point";
+import { registerSetupCommands } from "./commands/setup";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -34,6 +35,7 @@ program
   .version(getPackageVersion())
   .option("--json", "Output in JSON format");
 
+registerSetupCommands(program);
 registerAccountCommands(program);
 registerTradeCommands(program);
 registerPositionCommands(program);

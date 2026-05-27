@@ -1,3 +1,8 @@
+---
+name: dipcoin-cli
+description: Use when trading perpetual futures on DipCoin (Sui blockchain) via the `dipcoin-cli` tool — placing buy/sell orders (market/limit, with TP/SL), managing positions, depositing/withdrawing USDC, vault operations (create/deposit/withdraw), account/balance/history queries, and referral. Covers install, credential setup via `dipcoin-cli setup import` (existing key) or `dipcoin-cli setup generate` (new wallet), and full command reference.
+---
+
 # DipCoin Perpetual Trading CLI — Agent Skill Guide
 
 This document teaches AI agents (e.g. OpenClaw) how to install, configure, and use the `dipcoin-cli` tool for perpetual futures trading on the Sui blockchain.
@@ -16,34 +21,40 @@ After installation, the `dipcoin-cli` command is available globally.
 
 ## Configuration
 
-Before using the CLI, set up your credentials. Choose one of two methods:
+Credentials are stored in a single global config file at `~/.config/dipcoin/env`. The recommended way to create it is via the built-in `setup` commands — both write the file with `chmod 600` and never echo the private key.
 
-### Method 1: Global config file (recommended)
+### Option A — Import an existing key
 
-```bash
-mkdir -p ~/.config/dipcoin
-cat > ~/.config/dipcoin/env << 'EOF'
-DIPCOIN_PRIVATE_KEY=suiprivkey1...
-DIPCOIN_NETWORK=mainnet
-EOF
-```
-
-### Method 2: Environment variables
+For users who already have a Sui wallet:
 
 ```bash
-export DIPCOIN_PRIVATE_KEY="suiprivkey1..."
-export DIPCOIN_NETWORK=mainnet   # or testnet
+dipcoin-cli setup import                  # mainnet (default)
+dipcoin-cli setup import --network testnet
 ```
 
-### Environment variables reference
+The command interactively prompts for the private key with **hidden input** (the typed/pasted characters are not echoed). The user enters their `suiprivkey1...` string at the prompt; it is validated and written to `~/.config/dipcoin/env`.
+
+### Option B — Generate a new key
+
+For users who do not yet have a wallet:
+
+```bash
+dipcoin-cli setup generate                  # mainnet (default)
+dipcoin-cli setup generate --network testnet
+```
+
+A fresh Ed25519 keypair is created, saved to `~/.config/dipcoin/env`, and the public Sui address is printed. The user then transfers USDC (Sui network) to that address and deposits into the DEX with `dipcoin-cli account deposit <amount>`.
+
+### Config file format
+
+The file `~/.config/dipcoin/env` contains:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DIPCOIN_PRIVATE_KEY` | One of these | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
-| `DIPCOIN_MNEMONIC` | is required | 12-word Sui mnemonic phrase (derives keypair at `m/44'/784'/0'/0'/0'`) |
+| `DIPCOIN_PRIVATE_KEY` | Yes | Sui private key (`suiprivkey1...`), supports ED25519/Secp256k1/Secp256r1 |
 | `DIPCOIN_NETWORK` | No | `mainnet` or `testnet` (default: `mainnet`) |
 
-If both are set, `DIPCOIN_PRIVATE_KEY` takes precedence.
+Manual editing of the file is supported but discouraged — prefer the `setup` commands so permissions and format stay correct.
 
 ## Global Options
 
@@ -280,23 +291,34 @@ dipcoin-cli --version
 
 ### Step 2: Check configuration
 
-Check if the config file exists:
+Check if the config file exists and has a real key:
 
 ```bash
-cat ~/.config/dipcoin/env
+test -s ~/.config/dipcoin/env && grep -q '^DIPCOIN_PRIVATE_KEY=suiprivkey1' ~/.config/dipcoin/env && echo OK || echo MISSING
 ```
 
-- If the file does **not** exist, create a template for the user:
+If it prints `MISSING`, the user has no credentials yet. **Ask the user to pick one of the two setup paths** — do not pick for them, and do not skip this choice:
+
+> "You don't have credentials set up yet. Which would you like to do?
+> 1. **Import an existing wallet** — if you already have a Sui private key.
+> 2. **Generate a new wallet** — if you don't have one yet (you will need to fund it with USDC on Sui before trading)."
+
+Then, based on the user's answer:
+
+- **If they choose Import** — instruct them to run **in their own terminal** (not in chat):
   ```bash
-  mkdir -p ~/.config/dipcoin
-  cat > ~/.config/dipcoin/env << 'EOF'
-  DIPCOIN_PRIVATE_KEY=<paste your Sui private key here>
-  DIPCOIN_NETWORK=mainnet
-  EOF
+  dipcoin-cli setup import
   ```
-  Then tell the user: **"Please edit `~/.config/dipcoin/env` and replace `<paste your Sui private key here>` with your actual Sui private key (`suiprivkey1...`) or replace the line with `DIPCOIN_MNEMONIC=<your 12-word mnemonic>`."**
-- If the file exists but contains placeholder values, remind the user to fill in their real credentials.
-- **NEVER** ask the user to paste their private key or mnemonic into the chat. Always direct them to edit the file themselves.
+  The command will prompt for their private key with hidden input. **Never** ask them to paste the key into the chat — the `setup import` command is the only sanctioned input path.
+- **If they choose Generate** — they can run it themselves, or you can run it for them:
+  ```bash
+  dipcoin-cli setup generate
+  ```
+  After it prints the new Sui address, guide the user to transfer USDC on Sui to that address (continued in Step 3).
+
+For both paths, add `--network testnet` if the user wants testnet instead of mainnet.
+
+**Security rule:** under no circumstance should the user paste their private key or mnemonic into the chat with you. Always route them through `dipcoin-cli setup import`.
 
 ### Step 3: Ensure the user has funds to trade
 
