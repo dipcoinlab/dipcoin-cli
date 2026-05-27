@@ -181,11 +181,15 @@ dipcoin-cli position tpsl <symbol> --side <buy|sell> --quantity <q> --leverage <
 dipcoin-cli position tpsl <symbol> --side sell --quantity 0.01 --leverage 10 \
   --tp-trigger 105000 --tp-type limit --tp-price 105000
 
-# Close positions (reduce-only market orders, CLI figures out side & qty)
+# Close positions — CLI figures out side & qty
 dipcoin-cli position close BTC                  # close 100% of BTC position
 dipcoin-cli position close BTC --percent 50     # close half
 dipcoin-cli position close-all                  # close every open position
 dipcoin-cli position close-all --percent 50     # halve every open position
+
+# Manual form is still supported (specify exact qty yourself):
+dipcoin-cli trade sell BTC 0 10x --qty 0.01 --reduce-only   # close 0.01 of a long
+dipcoin-cli trade buy ETH 0 5x  --qty 1     --reduce-only   # close 1 of a short
 
 # Margin operations (on-chain) — auto-prepends a fresh signed price update
 dipcoin-cli position margin add <symbol> <amount>
