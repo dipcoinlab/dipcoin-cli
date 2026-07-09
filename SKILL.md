@@ -62,6 +62,28 @@ The file `~/.config/dipcoin/env` contains:
 
 If both are set, `DIPCOIN_PRIVATE_KEY` takes precedence. Manual editing is supported but discouraged — prefer the `setup` commands so permissions and format stay correct.
 
+### Isolated agent environments
+
+When running multiple AI agents on the same machine, give each agent its own `HOME` so `~/.config/dipcoin/env` resolves to a separate wallet config. Reuse the same `HOME` for every command from that agent.
+
+```bash
+mkdir -p /tmp/dipcoin-agent-a /tmp/dipcoin-agent-b
+
+HOME=/tmp/dipcoin-agent-a dipcoin-cli setup generate
+HOME=/tmp/dipcoin-agent-b dipcoin-cli setup generate
+
+HOME=/tmp/dipcoin-agent-a dipcoin-cli --json account info
+HOME=/tmp/dipcoin-agent-b dipcoin-cli --json account info
+```
+
+For vault delegation, each isolated agent can trade with its own wallet while targeting the vault account:
+
+```bash
+HOME=/tmp/dipcoin-agent-a dipcoin-cli --json trade buy BTC 100USDC 10x --vault <vaultId>
+```
+
+Keep the working directory clean when using isolated agent homes. The CLI also loads a `.env` file from the current working directory if one exists, so run agent commands from a scratch directory without a project `.env`, or make sure that local `.env` does not contain `DIPCOIN_PRIVATE_KEY`, `DIPCOIN_MNEMONIC`, or `DIPCOIN_NETWORK` for another wallet.
+
 ## Global Options
 
 These options apply to all commands and must be placed **before** the subcommand:
@@ -337,6 +359,12 @@ Check if the config file exists and has a real key:
 
 ```bash
 test -s ~/.config/dipcoin/env && grep -qE '^DIPCOIN_(PRIVATE_KEY=suiprivkey1|MNEMONIC=\S)' ~/.config/dipcoin/env && echo OK || echo MISSING
+```
+
+For an isolated agent environment, run the same check with the agent's `HOME`, and use that same `HOME` for every later command:
+
+```bash
+HOME=/tmp/dipcoin-agent-a sh -lc 'test -s ~/.config/dipcoin/env && grep -qE "^DIPCOIN_(PRIVATE_KEY=suiprivkey1|MNEMONIC=\\S)" ~/.config/dipcoin/env && echo OK || echo MISSING'
 ```
 
 If it prints `MISSING`, the user has no credentials yet. **Ask the user to pick one of the two setup paths** — do not pick for them, and do not skip this choice:
