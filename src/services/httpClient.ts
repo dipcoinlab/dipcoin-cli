@@ -13,7 +13,7 @@ export class HttpClient {
   private baseURL: string;
   private walletAddress?: string;
   private authToken?: string;
-  private timeout: number = 30;
+  private timeout = 30;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -30,7 +30,7 @@ export class HttpClient {
     return url?.includes("/public/") ?? false;
   }
 
-  private buildHeaders(url: string, contentType: string = "application/json"): Record<string, string> {
+  private buildHeaders(url: string, contentType = "application/json"): Record<string, string> {
     const headers: Record<string, string> = { "Content-Type": contentType };
 
     if (this.isAuthenticatedUrl(url)) {
@@ -45,7 +45,12 @@ export class HttpClient {
     return headers;
   }
 
-  private curlRequest(method: string, url: string, headers: Record<string, string>, body?: string): Promise<ApiResponse> {
+  private curlRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body?: string
+  ): Promise<ApiResponse> {
     return new Promise((resolve, reject) => {
       const fullUrl = `${this.baseURL}${url}`;
       const args: string[] = ["-s", "-X", method, fullUrl, "--max-time", String(this.timeout)];
@@ -62,8 +67,12 @@ export class HttpClient {
       let stdout = "";
       let stderr = "";
 
-      proc.stdout.on("data", (chunk) => { stdout += chunk; });
-      proc.stderr.on("data", (chunk) => { stderr += chunk; });
+      proc.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      proc.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
 
       proc.on("close", (code) => {
         if (!stdout) {
@@ -88,7 +97,10 @@ export class HttpClient {
     this.authToken = token;
   }
 
-  async get<T = any>(url: string, config?: { params?: Record<string, any> }): Promise<ApiResponse<T>> {
+  async get<T = any>(
+    url: string,
+    config?: { params?: Record<string, any> }
+  ): Promise<ApiResponse<T>> {
     let finalUrl = url;
     if (config?.params) {
       const qs = new URLSearchParams();
@@ -115,7 +127,11 @@ export class HttpClient {
         formData.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
       }
     }
-    return this.curlRequest("POST", url, this.buildHeaders(url, "application/x-www-form-urlencoded"), formData.toString()) as Promise<ApiResponse<T>>;
+    return this.curlRequest(
+      "POST",
+      url,
+      this.buildHeaders(url, "application/x-www-form-urlencoded"),
+      formData.toString()
+    ) as Promise<ApiResponse<T>>;
   }
 }
-

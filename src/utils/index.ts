@@ -14,8 +14,6 @@ import { fromBase64 } from "@mysten/sui/utils";
 import BigNumber from "bignumber.js";
 import { parseSerializedSignature } from "@mysten/sui/cryptography";
 import { Buffer } from "buffer";
-import { Transaction } from "@mysten/sui/transactions";
-import { SuiClient } from "@mysten/sui/client";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -104,8 +102,8 @@ export async function signMessage(keypair: Keypair, messageBytes: Uint8Array): P
  */
 export function buildSignature(signature: string, isKeyPair = false): string {
   const signatureData: any = parseSerializedSignature(signature);
-  let signatureHex = Buffer.from(signatureData.signature as any).toString("hex");
-  let publicKey = Buffer.from(signatureData.publicKey as any).toString("base64");
+  const signatureHex = Buffer.from(signatureData.signature as any).toString("hex");
+  const publicKey = Buffer.from(signatureData.publicKey as any).toString("base64");
   let flag = SignerTypes.KP_SECP256;
 
   if (
@@ -181,7 +179,6 @@ export function formatError(error: unknown): string {
   return String(error);
 }
 
-
 /**
  * Get the directory of the current module
  * Works for both ESM and CommonJS
@@ -193,17 +190,15 @@ function getModuleDir(): string {
       const __filename = fileURLToPath(import.meta.url);
       return path.dirname(__filename);
     }
-  } catch (e) {
+  } catch {
     // Fall through to CommonJS
   }
-  
+
   // CommonJS: use __dirname (will be available after compilation)
-  // @ts-ignore - __dirname may not be defined in ESM context
   if (typeof __dirname !== "undefined") {
-    // @ts-ignore
     return __dirname;
   }
-  
+
   // Fallback to process.cwd()
   return process.cwd();
 }
@@ -214,7 +209,7 @@ function getModuleDir(): string {
 function findPackageRoot(startDir: string): string | null {
   let currentDir = startDir;
   const root = path.parse(currentDir).root;
-  
+
   while (currentDir !== root) {
     const packageJsonPath = path.join(currentDir, "package.json");
     if (fs.existsSync(packageJsonPath)) {
@@ -231,7 +226,7 @@ function findPackageRoot(startDir: string): string | null {
     if (parentDir === currentDir) break;
     currentDir = parentDir;
   }
-  
+
   return null;
 }
 
@@ -240,9 +235,9 @@ export function readFile(filePath: string): any {
   // In packaged npm module, this will be dist/utils/ (or node_modules/@dipcoinlab/perp-client-ts/dist/utils/)
   // In development, this will be src/utils/
   const moduleDir = getModuleDir();
-  
+
   let resolvedPath: string | null = null;
-  
+
   // If path is absolute, use it directly
   if (path.isAbsolute(filePath)) {
     resolvedPath = filePath;
@@ -262,7 +257,7 @@ export function readFile(filePath: string): any {
           resolvedPath = packageConfigPath;
         }
       }
-      
+
       // Strategy 3: Try relative to process.cwd() as last resort
       if (!resolvedPath) {
         const cwdPath = path.resolve(process.cwd(), filePath);
@@ -272,14 +267,14 @@ export function readFile(filePath: string): any {
       }
     }
   }
-  
+
   if (!resolvedPath || !fs.existsSync(resolvedPath)) {
     console.error(`Warning: Config file not found at ${resolvedPath || filePath}`);
     console.error(`Searched from module directory: ${moduleDir}`);
     // Return empty object with packages array to prevent undefined.length error
     return { packages: [] };
   }
-  
+
   const config = JSON.parse(fs.readFileSync(resolvedPath).toString());
   // Ensure packages array exists to prevent undefined.length error
   if (!config.packages || !Array.isArray(config.packages)) {

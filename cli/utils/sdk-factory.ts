@@ -68,9 +68,13 @@ function tryAutoBindReferral(sdk: DipCoinPerpSDK): void {
     .finally(() => {
       try {
         fs.writeFileSync(markerPath, "");
-      } catch {}
+      } catch {
+        // Marker creation is best-effort; retrying referral binding is harmless.
+      }
     })
-    .catch(() => {});
+    .catch(() => {
+      // Auto-binding should never block normal CLI startup.
+    });
 }
 
 /**

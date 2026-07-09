@@ -21,7 +21,6 @@ import {
   buildAddMarginTx,
   buildRemoveMarginTx,
   buildSetOraclePriceTx,
-  buildBatchSetOraclePriceTx,
 } from "../onchain";
 import {
   AccountInfo,
@@ -60,7 +59,7 @@ import {
   TpSlOrderConfig,
   TradingPair,
   TradingPairsResponse,
-  UserConfig
+  UserConfig,
 } from "../types";
 import {
   formatError,
@@ -84,8 +83,8 @@ export class DipCoinPerpSDK {
   private options: DipCoinPerpSDKOptions;
   private jwtToken?: string;
   private subJwtToken?: string;
-  private isAuthenticating: boolean = false;
-  private isSubAuthenticating: boolean = false;
+  private isAuthenticating = false;
+  private isSubAuthenticating = false;
   private deploymentConfig: any;
   private suiClient: SuiClient;
   private priceServiceConnection?: SuiPriceServiceConnection;
@@ -293,7 +292,7 @@ export class DipCoinPerpSDK {
    * @param forceRefresh Force refresh the token even if one exists
    * @returns JWT token
    */
-  async getJWTToken(forceRefresh: boolean = false): Promise<SDKResponse<string>> {
+  async getJWTToken(forceRefresh = false): Promise<SDKResponse<string>> {
     if (forceRefresh) {
       this.jwtToken = undefined;
       this.httpClient.setAuthToken("");
@@ -1035,9 +1034,7 @@ export class DipCoinPerpSDK {
         results.slResult = await sendPlanCloseRequest(slPayload);
       }
 
-      const success = [results.tpResult, results.slResult].some(
-        (res) => res && res.code === 200
-      );
+      const success = [results.tpResult, results.slResult].some((res) => res && res.code === 200);
 
       if (success) {
         this.restoreMainAuth();
@@ -1052,9 +1049,7 @@ export class DipCoinPerpSDK {
         status: false,
         data: results,
         error:
-          results.tpResult?.message ||
-          results.slResult?.message ||
-          "Failed to place TP/SL order",
+          results.tpResult?.message || results.slResult?.message || "Failed to place TP/SL order",
       };
     } catch (error) {
       this.restoreMainAuth();
@@ -1111,9 +1106,7 @@ export class DipCoinPerpSDK {
         const rawData = Array.isArray(response.data)
           ? response.data
           : (response.data as any)?.data || [];
-        const orders = rawData.map((item: any) =>
-          this.transformPositionTpSlOrder(item)
-        );
+        const orders = rawData.map((item: any) => this.transformPositionTpSlOrder(item));
         return {
           status: true,
           data: orders,
@@ -1135,9 +1128,7 @@ export class DipCoinPerpSDK {
   /**
    * Cancel TP/SL orders (alias of cancelOrder)
    */
-  async cancelTpSlOrders(
-    params: CancelTpSlOrdersParams
-  ): Promise<SDKResponse<OrderResponse>> {
+  async cancelTpSlOrders(params: CancelTpSlOrdersParams): Promise<SDKResponse<OrderResponse>> {
     return this.cancelOrder(params);
   }
 
@@ -1349,7 +1340,9 @@ export class DipCoinPerpSDK {
    * @param symbol Optional symbol filter
    * @returns Open orders response
    */
-  async getOpenOrders(paramsOrSymbol?: string | OpenOrdersParams): Promise<SDKResponse<OpenOrder[]>> {
+  async getOpenOrders(
+    paramsOrSymbol?: string | OpenOrdersParams
+  ): Promise<SDKResponse<OpenOrder[]>> {
     try {
       // Ensure authenticated before making request
       const authResult = await this.authenticate();
@@ -1446,17 +1439,14 @@ export class DipCoinPerpSDK {
         symbol,
       };
 
-      const response = await this.httpClient.get<any>(
-        API_ENDPOINTS.GET_ORDER_BOOK,
-        { params }
-      );
+      const response = await this.httpClient.get<any>(API_ENDPOINTS.GET_ORDER_BOOK, { params });
 
       if (response.code === 200 && response.data) {
         // Extract order book data from response
         // Match Java client: OrderBookResponse has bids and asks as List<List<String>>
         // Format: [[price, quantity, orderNum], ...]
         let rawData = response.data;
-        
+
         // Handle nested response structure
         if ((rawData as any).data) {
           rawData = (rawData as any).data;
@@ -1507,10 +1497,7 @@ export class DipCoinPerpSDK {
    * @param side "bids" or "asks"
    * @returns Processed OrderBookEntry array
    */
-  private processOrderBookEntries(
-    entries: any[],
-    side: "bids" | "asks"
-  ): OrderBookEntry[] {
+  private processOrderBookEntries(entries: any[], side: "bids" | "asks"): OrderBookEntry[] {
     if (!Array.isArray(entries)) {
       return [];
     }
@@ -1618,10 +1605,7 @@ export class DipCoinPerpSDK {
         symbol,
       };
 
-      const response = await this.httpClient.get<any>(
-        API_ENDPOINTS.GET_TICKER,
-        { params }
-      );
+      const response = await this.httpClient.get<any>(API_ENDPOINTS.GET_TICKER, { params });
 
       if (response.code === 200 && response.data) {
         // Extract ticker data from response
@@ -1692,13 +1676,9 @@ export class DipCoinPerpSDK {
       slTriggerPrice: toNormal(raw.slTriggerPrice),
       slOrderPrice: toNormal(raw.slOrderPrice),
       tpPlanId:
-        planOrderType === "takeProfit"
-          ? raw.tpPlanId ?? raw.id ?? null
-          : raw.tpPlanId ?? null,
+        planOrderType === "takeProfit" ? raw.tpPlanId ?? raw.id ?? null : raw.tpPlanId ?? null,
       slPlanId:
-        planOrderType === "stopLoss"
-          ? raw.slPlanId ?? raw.id ?? null
-          : raw.slPlanId ?? null,
+        planOrderType === "stopLoss" ? raw.slPlanId ?? raw.id ?? null : raw.slPlanId ?? null,
       tpslType: raw.tpslType,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -1820,7 +1800,9 @@ export class DipCoinPerpSDK {
    * Get history orders (matches Java historyOrders)
    * @param params History orders query parameters
    */
-  async getHistoryOrders(params?: HistoryOrdersParams): Promise<SDKResponse<PageResponse<HistoryOrder>>> {
+  async getHistoryOrders(
+    params?: HistoryOrdersParams
+  ): Promise<SDKResponse<PageResponse<HistoryOrder>>> {
     try {
       const authResult = await this.authenticate();
       if (!authResult.status) {
@@ -1866,7 +1848,9 @@ export class DipCoinPerpSDK {
    * Get funding settlements history (matches Java fundingSettlements)
    * @param params Funding settlements query parameters
    */
-  async getFundingSettlements(params?: FundingSettlementsParams): Promise<SDKResponse<PageResponse<FundingSettlement>>> {
+  async getFundingSettlements(
+    params?: FundingSettlementsParams
+  ): Promise<SDKResponse<PageResponse<FundingSettlement>>> {
     try {
       const authResult = await this.authenticate();
       if (!authResult.status) {
@@ -1911,7 +1895,9 @@ export class DipCoinPerpSDK {
    * Get balance changes history (matches Java balanceChanges)
    * @param params Balance changes query parameters
    */
-  async getBalanceChanges(params?: BalanceChangesParams): Promise<SDKResponse<PageResponse<BalanceChange>>> {
+  async getBalanceChanges(
+    params?: BalanceChangesParams
+  ): Promise<SDKResponse<PageResponse<BalanceChange>>> {
     try {
       const authResult = await this.authenticate();
       if (!authResult.status) {
@@ -1962,10 +1948,7 @@ export class DipCoinPerpSDK {
         return { status: false, error: "Symbol is required" };
       }
 
-      const response = await this.httpClient.get<any>(
-        API_ENDPOINTS.ORACLE,
-        { params: { symbol } }
-      );
+      const response = await this.httpClient.get<any>(API_ENDPOINTS.ORACLE, { params: { symbol } });
 
       if (response.code === 200 && response.data !== undefined) {
         return { status: true, data: String(response.data) };
@@ -1993,7 +1976,14 @@ export class DipCoinPerpSDK {
     countback?: number;
   }): Promise<
     SDKResponse<
-      Array<{ time: number; open: string; high: string; low: string; close: string; volume: string }>
+      Array<{
+        time: number;
+        open: string;
+        high: string;
+        low: string;
+        close: string;
+        volume: string;
+      }>
     >
   > {
     try {
@@ -2018,8 +2008,8 @@ export class DipCoinPerpSDK {
       const raw: any[] = Array.isArray(response.data)
         ? response.data
         : Array.isArray(response.data?.data)
-          ? response.data.data
-          : [];
+        ? response.data.data
+        : [];
       const weiToNormal = (v: unknown): string => {
         if (v === undefined || v === null || v === "") return "0";
         const bn = new BigNumber(String(v));
@@ -2063,7 +2053,13 @@ export class DipCoinPerpSDK {
       return executeTxBlock(this.suiClient, transaction, this.keypair);
     }
     const fallbackPayload = this.buildMarginCallArgs(params, "add");
-    const tx = buildAddMarginTx(this.deploymentConfig, fallbackPayload, undefined, fallbackPayload.gasBudget, this.keypair.getPublicKey().toSuiAddress());
+    const tx = buildAddMarginTx(
+      this.deploymentConfig,
+      fallbackPayload,
+      undefined,
+      fallbackPayload.gasBudget,
+      this.keypair.getPublicKey().toSuiAddress()
+    );
     return executeTxBlock(this.suiClient, tx, this.keypair);
   }
 
@@ -2077,7 +2073,13 @@ export class DipCoinPerpSDK {
       return executeTxBlock(this.suiClient, transaction, this.keypair);
     }
     const fallbackPayload = this.buildMarginCallArgs(params, "remove");
-    const tx = buildRemoveMarginTx(this.deploymentConfig, fallbackPayload, undefined, fallbackPayload.gasBudget, this.keypair.getPublicKey().toSuiAddress());
+    const tx = buildRemoveMarginTx(
+      this.deploymentConfig,
+      fallbackPayload,
+      undefined,
+      fallbackPayload.gasBudget,
+      this.keypair.getPublicKey().toSuiAddress()
+    );
     return executeTxBlock(this.suiClient, tx, this.keypair);
   }
 
@@ -2096,16 +2098,8 @@ export class DipCoinPerpSDK {
     gasBudget?: number;
     txHash?: string;
   } {
-    const {
-      amount,
-      accountAddress,
-      symbol,
-      market,
-      perpId,
-      subAccountsMapId,
-      gasBudget,
-      txHash,
-    } = params;
+    const { amount, accountAddress, symbol, market, perpId, subAccountsMapId, gasBudget, txHash } =
+      params;
 
     if (!this.isPositiveNumber(amount)) {
       throw new Error(`Amount must be greater than zero to ${action} margin`);
@@ -2210,12 +2204,15 @@ export class DipCoinPerpSDK {
     signature: number[];
     publicKey: number[];
   }> {
-    return this.signDipcoinActionPayload([
-      ["action", args.action],
-      ["market", this.normalizeSuiAddress(args.market)],
-      ["user", this.toUnifiedSuiAddress(args.user)],
-      ["amount", args.amount],
-    ], args.user);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", args.action],
+        ["market", this.normalizeSuiAddress(args.market)],
+        ["user", this.toUnifiedSuiAddress(args.user)],
+        ["amount", args.amount],
+      ],
+      args.user
+    );
   }
 
   private async signVaultCreatePayload(args: {
@@ -2228,17 +2225,20 @@ export class DipCoinPerpSDK {
     creatorProfitShareRatio: string;
     initialAmount: string;
   }) {
-    return this.signDipcoinActionPayload([
-      ["action", "VaultCreate"],
-      ["creator", this.toUnifiedSuiAddress(args.creator)],
-      ["name", args.name],
-      ["trader", this.toUnifiedSuiAddress(args.trader)],
-      ["maxCap", args.maxCap],
-      ["minDepositAmount", args.minDepositAmount],
-      ["creatorMinimumShareRatio", args.creatorMinimumShareRatio],
-      ["creatorProfitShareRatio", args.creatorProfitShareRatio],
-      ["initialAmount", args.initialAmount],
-    ], args.creator);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", "VaultCreate"],
+        ["creator", this.toUnifiedSuiAddress(args.creator)],
+        ["name", args.name],
+        ["trader", this.toUnifiedSuiAddress(args.trader)],
+        ["maxCap", args.maxCap],
+        ["minDepositAmount", args.minDepositAmount],
+        ["creatorMinimumShareRatio", args.creatorMinimumShareRatio],
+        ["creatorProfitShareRatio", args.creatorProfitShareRatio],
+        ["initialAmount", args.initialAmount],
+      ],
+      args.creator
+    );
   }
 
   private async signVaultUserAmountPayload(
@@ -2247,12 +2247,15 @@ export class DipCoinPerpSDK {
     user: string,
     amount: string
   ) {
-    return this.signDipcoinActionPayload([
-      ["action", action],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["user", this.toUnifiedSuiAddress(user)],
-      ["amount", amount],
-    ], user);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", action],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["user", this.toUnifiedSuiAddress(user)],
+        ["amount", amount],
+      ],
+      user
+    );
   }
 
   private async signVaultUserPayload(
@@ -2260,20 +2263,26 @@ export class DipCoinPerpSDK {
     vaultID: string,
     user: string
   ) {
-    return this.signDipcoinActionPayload([
-      ["action", action],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["user", this.toUnifiedSuiAddress(user)],
-    ], user);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", action],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["user", this.toUnifiedSuiAddress(user)],
+      ],
+      user
+    );
   }
 
   private async signVaultSetTraderPayload(vaultID: string, creator: string, newTrader: string) {
-    return this.signDipcoinActionPayload([
-      ["action", "VaultSetTrader"],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["creator", this.toUnifiedSuiAddress(creator)],
-      ["newTrader", this.toUnifiedSuiAddress(newTrader)],
-    ], creator);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", "VaultSetTrader"],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["creator", this.toUnifiedSuiAddress(creator)],
+        ["newTrader", this.toUnifiedSuiAddress(newTrader)],
+      ],
+      creator
+    );
   }
 
   private async signVaultSetSubTraderPayload(
@@ -2282,22 +2291,28 @@ export class DipCoinPerpSDK {
     subTrader: string,
     status: boolean
   ) {
-    return this.signDipcoinActionPayload([
-      ["action", "VaultSetSubTrader"],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["trader", this.toUnifiedSuiAddress(trader)],
-      ["subTrader", this.toUnifiedSuiAddress(subTrader)],
-      ["status", String(status)],
-    ], trader);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", "VaultSetSubTrader"],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["trader", this.toUnifiedSuiAddress(trader)],
+        ["subTrader", this.toUnifiedSuiAddress(subTrader)],
+        ["status", String(status)],
+      ],
+      trader
+    );
   }
 
   private async signVaultDepositStatusPayload(vaultID: string, creator: string, status: boolean) {
-    return this.signDipcoinActionPayload([
-      ["action", "VaultSetDepositStatus"],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["creator", this.toUnifiedSuiAddress(creator)],
-      ["status", String(status)],
-    ], creator);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", "VaultSetDepositStatus"],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["creator", this.toUnifiedSuiAddress(creator)],
+        ["status", String(status)],
+      ],
+      creator
+    );
   }
 
   private async signVaultCreatorAmountPayload(
@@ -2306,12 +2321,15 @@ export class DipCoinPerpSDK {
     creator: string,
     amount: string
   ) {
-    return this.signDipcoinActionPayload([
-      ["action", action],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["creator", this.toUnifiedSuiAddress(creator)],
-      ["amount", amount],
-    ], creator);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", action],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["creator", this.toUnifiedSuiAddress(creator)],
+        ["amount", amount],
+      ],
+      creator
+    );
   }
 
   private async signVaultAutoClosePayload(
@@ -2319,12 +2337,15 @@ export class DipCoinPerpSDK {
     creator: string,
     autoCloseOnWithdraw: boolean
   ) {
-    return this.signDipcoinActionPayload([
-      ["action", "VaultSetAutoCloseOnWithdraw"],
-      ["vault", this.normalizeSuiAddress(vaultID)],
-      ["creator", this.toUnifiedSuiAddress(creator)],
-      ["autoCloseOnWithdraw", String(autoCloseOnWithdraw)],
-    ], creator);
+    return this.signDipcoinActionPayload(
+      [
+        ["action", "VaultSetAutoCloseOnWithdraw"],
+        ["vault", this.normalizeSuiAddress(vaultID)],
+        ["creator", this.toUnifiedSuiAddress(creator)],
+        ["autoCloseOnWithdraw", String(autoCloseOnWithdraw)],
+      ],
+      creator
+    );
   }
 
   private getDeploymentProtocolConfigId(): string {
@@ -2341,7 +2362,8 @@ export class DipCoinPerpSDK {
   ): Promise<Transaction | undefined> {
     const payload = this.buildMarginCallArgs(params, action);
     const signedMarket =
-      payload.perpID || (payload.market ? this.resolvePerpIdFromDeployment(payload.market) : undefined);
+      payload.perpID ||
+      (payload.market ? this.resolvePerpIdFromDeployment(payload.market) : undefined);
     if (!signedMarket) {
       throw new Error("PerpetualID is required for signed margin payload");
     }
@@ -2389,7 +2411,9 @@ export class DipCoinPerpSDK {
     }
   }
 
-  private async buildMainnetPriceUpdateTransaction(symbol: string): Promise<Transaction | undefined> {
+  private async buildMainnetPriceUpdateTransaction(
+    symbol: string
+  ): Promise<Transaction | undefined> {
     const priceInfoObjectId = this.getPriceInfoObjectId(symbol);
     const priceFeedId = await this.resolvePriceFeedId(symbol);
     if (!priceInfoObjectId || !priceFeedId) {
@@ -2424,7 +2448,11 @@ export class DipCoinPerpSDK {
     symbol: string
   ): Promise<Transaction | undefined> {
     try {
-      const oraclePrice = await getOnChainOraclePrice(this.suiClient, this.deploymentConfig, symbol);
+      const oraclePrice = await getOnChainOraclePrice(
+        this.suiClient,
+        this.deploymentConfig,
+        symbol
+      );
       if (oraclePrice === undefined || oraclePrice === null) {
         return undefined;
       }
@@ -2617,7 +2645,9 @@ export class DipCoinPerpSDK {
    * Get all coin balances on-chain for the current wallet address
    * @returns Array of coin balances with coinType and totalBalance
    */
-  async getAllBalances(owner?: string): Promise<SDKResponse<{ coinType: string; totalBalance: string }[]>> {
+  async getAllBalances(
+    owner?: string
+  ): Promise<SDKResponse<{ coinType: string; totalBalance: string }[]>> {
     try {
       const balances = await this.suiClient.getAllBalances({ owner: owner || this.walletAddress });
       return { status: true, data: balances };
@@ -2630,13 +2660,18 @@ export class DipCoinPerpSDK {
    * Get coin metadata (symbol, decimals, name) for a given coin type
    * @param coinType Full coin type string (e.g., "0x2::sui::SUI")
    */
-  async getCoinMetadata(coinType: string): Promise<SDKResponse<{ decimals: number; symbol: string; name: string }>> {
+  async getCoinMetadata(
+    coinType: string
+  ): Promise<SDKResponse<{ decimals: number; symbol: string; name: string }>> {
     try {
       const metadata = await this.suiClient.getCoinMetadata({ coinType });
       if (!metadata) {
         return { status: false, error: "Coin metadata not found" };
       }
-      return { status: true, data: { decimals: metadata.decimals, symbol: metadata.symbol, name: metadata.name } };
+      return {
+        status: true,
+        data: { decimals: metadata.decimals, symbol: metadata.symbol, name: metadata.name },
+      };
     } catch (error) {
       return { status: false, error: formatError(error) };
     }
@@ -2736,11 +2771,7 @@ export class DipCoinPerpSDK {
     for (let i = 0; i < length; i++) {
       const timestampOffset = offset + 32 + 16;
       if (timestampOffset + 8 > payload.length) return [];
-      const view = new DataView(
-        payload.buffer,
-        payload.byteOffset + timestampOffset,
-        8
-      );
+      const view = new DataView(payload.buffer, payload.byteOffset + timestampOffset, 8);
       timestamps.push(Number(view.getBigUint64(0, true)));
       offset = timestampOffset + 8 + 2;
     }
@@ -2763,7 +2794,8 @@ export class DipCoinPerpSDK {
     // to catch up before submitting the PTB. Public RPC backends can disagree by
     // a few seconds, so target a timestamp that is already ~10s old.
     const start = Date.now();
-    while (true) {
+    const deadline = start + 180_000;
+    while (Date.now() <= deadline) {
       const clock = await this.suiClient.getObject({
         id: "0x6",
         options: { showContent: true },
@@ -2773,7 +2805,7 @@ export class DipCoinPerpSDK {
 
       const waitMs = timestamp - clockMs + 10_000;
       if (waitMs <= 0) return;
-      if (Date.now() - start + waitMs > 180_000) {
+      if (Date.now() + waitMs > deadline) {
         throw new Error(
           `Signed price feed is too far ahead of Sui Clock (${Math.ceil(
             waitMs / 1000
@@ -2784,16 +2816,15 @@ export class DipCoinPerpSDK {
     }
   }
 
-  private async waitForSignedPriceFeedEntries(
-    entries: { payload: Uint8Array }[]
-  ): Promise<void> {
+  private async waitForSignedPriceFeedEntries(entries: { payload: Uint8Array }[]): Promise<void> {
     const timestamps = entries.flatMap((entry) => this.getSignedPriceFeedTimestamps(entry.payload));
     if (!timestamps.length) return;
 
     const maxTimestamp = Math.max(...timestamps);
     const minTimestamp = Math.min(...timestamps);
     const start = Date.now();
-    while (true) {
+    const deadline = start + 180_000;
+    while (Date.now() <= deadline) {
       const clock = await this.suiClient.getObject({
         id: "0x6",
         options: { showContent: true },
@@ -2808,7 +2839,7 @@ export class DipCoinPerpSDK {
         }
         return;
       }
-      if (Date.now() - start + waitMs > 180_000) {
+      if (Date.now() + waitMs > deadline) {
         throw new Error(
           `Signed price feed is too far ahead of Sui Clock (${Math.ceil(
             waitMs / 1000
@@ -2831,12 +2862,13 @@ export class DipCoinPerpSDK {
     }>(`${API_ENDPOINTS.SIGNED_PRICE_LATEST}?${qs}`);
     if (resp.code !== 200 || !resp.data) {
       throw new Error(
-        `Failed to fetch signed price feed for [${symbols.join(",")}]: ${resp.message || `code ${resp.code}`}`
+        `Failed to fetch signed price feed for [${symbols.join(",")}]: ${
+          resp.message || `code ${resp.code}`
+        }`
       );
     }
     const d = resp.data;
-    const b64 = (s: string): Uint8Array =>
-      Uint8Array.from(Buffer.from(s, "base64"));
+    const b64 = (s: string): Uint8Array => Uint8Array.from(Buffer.from(s, "base64"));
     if (!d.payload || !d.signature || !d.publicKey) {
       throw new Error("Signed price feed response missing payload/signature/publicKey");
     }
@@ -2855,7 +2887,10 @@ export class DipCoinPerpSDK {
   private async fetchSignedPriceFeeds(
     symbols: string[]
   ): Promise<Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>> {
-    const out = new Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>();
+    const out = new Map<
+      string,
+      { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }
+    >();
     if (symbols.length === 0) return out;
     let lastClockError: unknown;
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -2907,12 +2942,7 @@ export class DipCoinPerpSDK {
         continue;
       }
       return Array.from(
-        new Map(
-          entries.map((feed) => [
-            Buffer.from(feed.payload).toString("hex"),
-            feed,
-          ])
-        ).values()
+        new Map(entries.map((feed) => [Buffer.from(feed.payload).toString("hex"), feed])).values()
       );
     }
     throw lastClockError || new Error("Failed to fetch usable signed price feed chunks");
@@ -2975,7 +3005,9 @@ export class DipCoinPerpSDK {
         value: Array.from(Buffer.from("perpetual_registry", "utf8")),
       },
     });
-    const content = df.data?.content as { fields?: { value?: { fields?: { perpetuals?: { fields?: { contents?: unknown } } } } } } | undefined;
+    const content = df.data?.content as
+      | { fields?: { value?: { fields?: { perpetuals?: { fields?: { contents?: unknown } } } } } }
+      | undefined;
     const contents = content?.fields?.value?.fields?.perpetuals?.fields?.contents;
     if (!Array.isArray(contents)) {
       throw new Error(
@@ -3203,11 +3235,7 @@ export class DipCoinPerpSDK {
   async closeVault(args: { vaultID: string; markets?: string[] }) {
     const { nav, tx } = await this.buildVaultNavTransaction(args.vaultID, args.markets);
     const vaultPkg = this.getVaultPackageId();
-    const signed = await this.signVaultUserPayload(
-      "VaultClose",
-      args.vaultID,
-      this.walletAddress
-    );
+    const signed = await this.signVaultUserPayload("VaultClose", args.vaultID, this.walletAddress);
     tx.moveCall({
       target: `${vaultPkg}::vault::close_vault_v3`,
       arguments: [
@@ -3519,10 +3547,7 @@ export class DipCoinPerpSDK {
   /**
    * Get a user's position (shares) in a vault by querying the on-chain user_positions table.
    */
-  async getVaultUserPosition(
-    vaultID: string,
-    userAddress?: string,
-  ): Promise<SDKResponse<any>> {
+  async getVaultUserPosition(vaultID: string, userAddress?: string): Promise<SDKResponse<any>> {
     try {
       const address = userAddress || this.walletAddress;
       // First get vault object to find user_positions table ID
@@ -3564,9 +3589,7 @@ export class DipCoinPerpSDK {
   /**
    * List vaults created by a specific address via server API.
    */
-  async listVaults(
-    creatorAddress?: string,
-  ): Promise<SDKResponse<any[]>> {
+  async listVaults(creatorAddress?: string): Promise<SDKResponse<any[]>> {
     try {
       const address = creatorAddress || this.walletAddress;
       const response = await this.httpClient.get<any[]>(API_ENDPOINTS.VAULTS_BY_CREATOR, {
@@ -3711,10 +3734,7 @@ export class DipCoinPerpSDK {
    * Get list of invitees
    * @param params Pagination parameters
    */
-  async getInvitees(params?: {
-    page?: number;
-    pageSize?: number;
-  }): Promise<SDKResponse<any>> {
+  async getInvitees(params?: { page?: number; pageSize?: number }): Promise<SDKResponse<any>> {
     try {
       const authResult = await this.authenticate();
       if (!authResult.status) {

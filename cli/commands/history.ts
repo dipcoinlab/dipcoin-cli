@@ -1,6 +1,13 @@
 import { Command } from "commander";
 import { getSDK } from "../utils/sdk-factory";
-import { isJson, printJson, printTable, handleError, formatWei, normalizeSymbol } from "../utils/output";
+import {
+  isJson,
+  printJson,
+  printTable,
+  handleError,
+  formatWei,
+  normalizeSymbol,
+} from "../utils/output";
 
 export function registerHistoryCommands(program: Command) {
   const history = program.command("history").description("History queries");

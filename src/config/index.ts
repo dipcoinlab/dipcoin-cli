@@ -24,5 +24,3 @@ export function initSDKOptions(
     subAccountKey: options.subAccountKey,
   };
 }
-
-

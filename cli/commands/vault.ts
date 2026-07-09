@@ -1,6 +1,13 @@
 import { Command } from "commander";
 import { getSDK } from "../utils/sdk-factory";
-import { isJson, printJson, printTable, handleError, printTxResult as printTxResultShared, parseAmount } from "../utils/output";
+import {
+  isJson,
+  printJson,
+  printTable,
+  handleError,
+  printTxResult as printTxResultShared,
+  parseAmount,
+} from "../utils/output";
 import BigNumber from "bignumber.js";
 
 /**
@@ -108,7 +115,11 @@ export function registerVaultCommands(program: Command) {
     .description("List all public vaults")
     .option("--page <num>", "Page number (default: 1)", "1")
     .option("--page-size <num>", "Items per page (default: 10)", "10")
-    .option("--filter <type>", "Filter type: All, Leading, Newest, HotDeposit (default: All)", "All")
+    .option(
+      "--filter <type>",
+      "Filter type: All, Leading, Newest, HotDeposit (default: All)",
+      "All"
+    )
     .action(async (opts) => {
       try {
         const sdk = getSDK();
@@ -116,7 +127,10 @@ export function registerVaultCommands(program: Command) {
         if (!result.status) return handleError(result.error);
 
         let vaults: any[] = result.data || [];
-        if (!vaults.length) return isJson(program) ? printJson({ records: [], total: 0, pageNum: 1, pageSize: 10 }) : console.log("No vaults found.");
+        if (!vaults.length)
+          return isJson(program)
+            ? printJson({ records: [], total: 0, pageNum: 1, pageSize: 10 })
+            : console.log("No vaults found.");
 
         // Client-side filter
         const filter = opts.filter;
@@ -141,12 +155,25 @@ export function registerVaultCommands(program: Command) {
         const start = (pageNum - 1) * pageSize;
         const pageVaults = vaults.slice(start, start + pageSize);
 
-        if (isJson(program)) return printJson({ records: pageVaults, total, pageNum, pageSize, totalPages });
+        if (isJson(program))
+          return printJson({ records: pageVaults, total, pageNum, pageSize, totalPages });
 
-        if (!pageVaults.length) return console.log(`No vaults on page ${pageNum}. Total: ${total}, pages: ${totalPages}.`);
+        if (!pageVaults.length)
+          return console.log(
+            `No vaults on page ${pageNum}. Total: ${total}, pages: ${totalPages}.`
+          );
 
         printTable(
-          ["Name", "Vault ID", "TVL (USDC)", "APR (%)", "Depositors", "Age (d)", "Deposit", "Status"],
+          [
+            "Name",
+            "Vault ID",
+            "TVL (USDC)",
+            "APR (%)",
+            "Depositors",
+            "Age (d)",
+            "Deposit",
+            "Status",
+          ],
           pageVaults.map((v: any) => {
             const tvl = new BigNumber(v.tvl || "0").dividedBy(new BigNumber(10).pow(18)).toFixed(2);
             const apr = new BigNumber(v.apr || "0").dividedBy(new BigNumber(10).pow(14)).toFixed(2);
@@ -192,7 +219,10 @@ export function registerVaultCommands(program: Command) {
             ["Name", d.name || "-"],
             ["Creator", d.creator || "-"],
             ["Trader", d.trader || "-"],
-            ["Deposit Status", d.deposit_status === true || d.deposit_status === "true" ? "Open" : "Closed"],
+            [
+              "Deposit Status",
+              d.deposit_status === true || d.deposit_status === "true" ? "Open" : "Closed",
+            ],
             ["Total Shares", formatWeiValue(d.total_shares)],
             ["Max Cap", formatWeiValue(d.max_cap)],
             ["Min Deposit", formatWeiValue(d.min_deposit_amount)],
@@ -244,9 +274,7 @@ export function registerVaultCommands(program: Command) {
             ["Last Deposit", depositTime],
           ]
         );
-        console.log(
-          `\nTo withdraw all shares, run: vault withdraw ${vaultId} --all`
-        );
+        console.log(`\nTo withdraw all shares, run: vault withdraw ${vaultId} --all`);
       } catch (e) {
         handleError(e);
       }
@@ -298,7 +326,9 @@ export function registerVaultCommands(program: Command) {
             const unlockTime = new Date(unlockAt).toLocaleString();
             return handleError(
               `Withdrawal locked: must wait ${hours}h ${mins}m after last deposit.\n` +
-                `  Last deposit:  ${new Date(Number(pos.data.lastDepositTimeMs)).toLocaleString()}\n` +
+                `  Last deposit:  ${new Date(
+                  Number(pos.data.lastDepositTimeMs)
+                ).toLocaleString()}\n` +
                 `  Unlocks at:    ${unlockTime}`
             );
           }
@@ -318,7 +348,11 @@ export function registerVaultCommands(program: Command) {
         }
         console.log(`Requesting withdrawal of ${withdrawShares} shares from vault ${vaultId}...`);
         const tx = await sdk.requestWithdrawFromVault({ vaultID: vaultId, shares: withdrawShares });
-        printTxResultShared(program, tx, `Withdrawal request submitted for ${withdrawShares} shares.`);
+        printTxResultShared(
+          program,
+          tx,
+          `Withdrawal request submitted for ${withdrawShares} shares.`
+        );
       } catch (e) {
         handleError(e);
       }
@@ -333,7 +367,10 @@ export function registerVaultCommands(program: Command) {
     )
     .argument("<vaultId>", "Vault object ID")
     .argument("<requestIDs...>", "Withdrawal request object IDs")
-    .option("--markets <ids>", "Comma-separated market PerpetualIDs (deprecated; NAV now uses on-chain registry)")
+    .option(
+      "--markets <ids>",
+      "Comma-separated market PerpetualIDs (deprecated; NAV now uses on-chain registry)"
+    )
     .action(async (vaultId, requestIDs, opts) => {
       try {
         const sdk = getSDK();
@@ -476,7 +513,10 @@ export function registerVaultCommands(program: Command) {
     .action(async (vaultId, amount) => {
       try {
         const sdk = getSDK();
-        const tx = await sdk.setVaultMinDepositAmount({ vaultID: vaultId, minDepositAmount: parseAmount(amount) });
+        const tx = await sdk.setVaultMinDepositAmount({
+          vaultID: vaultId,
+          minDepositAmount: parseAmount(amount),
+        });
         printTxResultShared(program, tx, `Min deposit set to ${amount} USDC.`);
       } catch (e) {
         handleError(e);
@@ -493,8 +533,15 @@ export function registerVaultCommands(program: Command) {
       try {
         const sdk = getSDK();
         const enabled = !opts.disable;
-        const tx = await sdk.setVaultAutoCloseOnWithdraw({ vaultID: vaultId, autoCloseOnWithdraw: enabled });
-        printTxResultShared(program, tx, `Auto-close on withdraw ${enabled ? "enabled" : "disabled"}.`);
+        const tx = await sdk.setVaultAutoCloseOnWithdraw({
+          vaultID: vaultId,
+          autoCloseOnWithdraw: enabled,
+        });
+        printTxResultShared(
+          program,
+          tx,
+          `Auto-close on withdraw ${enabled ? "enabled" : "disabled"}.`
+        );
       } catch (e) {
         handleError(e);
       }

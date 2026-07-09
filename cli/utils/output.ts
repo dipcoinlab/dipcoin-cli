@@ -23,7 +23,10 @@ export function formatWei(value: string | number | null | undefined): string {
 }
 
 export function handleError(error: any): void {
-  console.error("Error:", typeof error === "string" ? error : error?.message || JSON.stringify(error));
+  console.error(
+    "Error:",
+    typeof error === "string" ? error : error?.message || JSON.stringify(error)
+  );
   process.exit(1);
 }
 

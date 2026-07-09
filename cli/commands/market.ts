@@ -1,6 +1,13 @@
 import { Command } from "commander";
 import { getSDK } from "../utils/sdk-factory";
-import { isJson, printJson, printTable, handleError, normalizeSymbol, formatWei } from "../utils/output";
+import {
+  isJson,
+  printJson,
+  printTable,
+  handleError,
+  normalizeSymbol,
+  formatWei,
+} from "../utils/output";
 
 export function registerMarketCommands(program: Command) {
   const market = program.command("market").description("Market data");
@@ -78,9 +85,12 @@ export function registerMarketCommands(program: Command) {
         const ob = result.data;
         console.log(`\n  Order Book: ${symbol}`);
         console.log("  --- Asks (sell) ---");
-        ob.asks.slice(0, 10).reverse().forEach((a) => {
-          console.log(`    ${formatWei(a.price).padStart(14)}  |  ${formatWei(a.quantity)}`);
-        });
+        ob.asks
+          .slice(0, 10)
+          .reverse()
+          .forEach((a) => {
+            console.log(`    ${formatWei(a.price).padStart(14)}  |  ${formatWei(a.quantity)}`);
+          });
         console.log("  --- Bids (buy) ---");
         ob.bids.slice(0, 10).forEach((b) => {
           console.log(`    ${formatWei(b.price).padStart(14)}  |  ${formatWei(b.quantity)}`);

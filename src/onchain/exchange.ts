@@ -5,7 +5,6 @@ import { SuiClient, SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { Keypair } from "@mysten/sui/cryptography";
 import { Transaction } from "@mysten/sui/transactions";
 import {
-  buildDepositTx,
   buildWithdrawTx,
   buildAddMarginTx,
   buildRemoveMarginTx,
@@ -44,7 +43,8 @@ export async function getOraclePrice(
 ): Promise<number> {
   const objId = getPriceOracleObjectId(deployment, market);
   const obj = await suiClient.getObject({ id: objId, options: { showContent: true } });
-  const fields = (obj.data?.content as any)?.fields?.price_info?.fields?.price_feed?.fields?.price?.fields;
+  const fields = (obj.data?.content as any)?.fields?.price_info?.fields?.price_feed?.fields?.price
+    ?.fields;
   if (!fields) throw new Error(`Failed to read oracle price for ${market}`);
   return Number(fields.price.fields.magnitude) / Math.pow(10, Number(fields.expo.fields.magnitude));
 }
@@ -99,7 +99,13 @@ export async function withdrawFromBank(
   args: { amount: string; accountAddress?: string; bankID?: string; gasBudget?: number },
   signer: Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const tx = buildWithdrawTx(deployment, args, undefined, args.gasBudget, signer.getPublicKey().toSuiAddress());
+  const tx = buildWithdrawTx(
+    deployment,
+    args,
+    undefined,
+    args.gasBudget,
+    signer.getPublicKey().toSuiAddress()
+  );
   return executeTxBlock(suiClient, tx, signer);
 }
 
@@ -116,7 +122,13 @@ export async function addMargin(
   },
   signer: Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const tx = buildAddMarginTx(deployment, args, undefined, args.gasBudget, signer.getPublicKey().toSuiAddress());
+  const tx = buildAddMarginTx(
+    deployment,
+    args,
+    undefined,
+    args.gasBudget,
+    signer.getPublicKey().toSuiAddress()
+  );
   return executeTxBlock(suiClient, tx, signer);
 }
 
@@ -133,7 +145,13 @@ export async function removeMargin(
   },
   signer: Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const tx = buildRemoveMarginTx(deployment, args, undefined, args.gasBudget, signer.getPublicKey().toSuiAddress());
+  const tx = buildRemoveMarginTx(
+    deployment,
+    args,
+    undefined,
+    args.gasBudget,
+    signer.getPublicKey().toSuiAddress()
+  );
   return executeTxBlock(suiClient, tx, signer);
 }
 
@@ -143,6 +161,12 @@ export async function setSubAccount(
   args: { account: string; status: boolean; subAccountsMapID?: string; gasBudget?: number },
   signer: Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  const tx = buildSetSubAccountTx(deployment, args, undefined, args.gasBudget, signer.getPublicKey().toSuiAddress());
+  const tx = buildSetSubAccountTx(
+    deployment,
+    args,
+    undefined,
+    args.gasBudget,
+    signer.getPublicKey().toSuiAddress()
+  );
   return executeTxBlock(suiClient, tx, signer);
 }

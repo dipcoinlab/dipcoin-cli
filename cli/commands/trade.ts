@@ -1,6 +1,13 @@
 import { Command } from "commander";
 import { getSDK } from "../utils/sdk-factory";
-import { isJson, printJson, printTable, handleError, normalizeSymbol, formatWei } from "../utils/output";
+import {
+  isJson,
+  printJson,
+  printTable,
+  handleError,
+  normalizeSymbol,
+  formatWei,
+} from "../utils/output";
 import { OrderSide, OrderType } from "../../src/types";
 
 /**

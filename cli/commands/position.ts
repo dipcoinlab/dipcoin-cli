@@ -166,7 +166,8 @@ export function registerPositionCommands(program: Command) {
         for (const pos of positions) {
           const r = await closeOnePosition(sdk, pos, percent, opts.vault);
           results.push({ symbol: pos.symbol, ok: r.ok, message: r.message });
-          if (!isJson(program)) console.log(`  ${pos.symbol}: ${r.ok ? "OK" : "FAILED"} — ${r.message}`);
+          if (!isJson(program))
+            console.log(`  ${pos.symbol}: ${r.ok ? "OK" : "FAILED"} — ${r.message}`);
         }
         if (isJson(program)) printJson({ closed: results.filter((r) => r.ok).length, results });
       } catch (e) {

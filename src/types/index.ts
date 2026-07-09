@@ -649,4 +649,3 @@ export interface TickerResponse {
   data: Ticker;
   message?: string;
 }
-
