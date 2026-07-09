@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SuiClient, SuiTransactionBlockResponse, getFullnodeUrl } from "@mysten/sui/client";
-import { Keypair } from "@mysten/sui/cryptography";
+import { Keypair, parseSerializedSignature } from "@mysten/sui/cryptography";
 import { Transaction } from "@mysten/sui/transactions";
 import { initSDKOptions } from "../config";
 import BigNumber from "bignumber.js";
@@ -2134,6 +2134,198 @@ export class DipCoinPerpSDK {
     };
   }
 
+  private packPayload(fields: [string, string][]): string {
+    let result = "{\n";
+    for (const [key, value] of fields) {
+      result += `"${key}":"${value}",\n`;
+    }
+    result += '"domain":"dipcoin.io"\n';
+    result += "}";
+    return result;
+  }
+
+  private normalizeSuiAddress(address: string): string {
+    const hex = address.startsWith("0x") ? address.slice(2) : address;
+    if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length > 64) {
+      throw new Error(`Invalid Sui address: ${address}`);
+    }
+    return `0x${hex.toLowerCase().padStart(64, "0")}`;
+  }
+
+  private toUnifiedSuiAddress(address: string): string {
+    const normalized = this.normalizeSuiAddress(address);
+    return `Sui:0x${normalized.slice(2)}`;
+  }
+
+  private toUnifiedSuiAddressBytes(address: string): number[] {
+    const normalized = this.normalizeSuiAddress(address);
+    return [0, ...Array.from(Buffer.from(normalized.slice(2), "hex"))];
+  }
+
+  private async signDipcoinActionPayload(
+    fields: [string, string][],
+    addressForVector: string
+  ): Promise<{
+    userAddress: number[];
+    salt: string;
+    expiration: string;
+    signature: number[];
+    publicKey: number[];
+  }> {
+    const salt = Date.now();
+    const expiration = salt + 1_800_000;
+    const message = this.packPayload([
+      ...fields,
+      ["salt", String(salt)],
+      ["expiration", String(expiration)],
+    ]);
+    const signed = await this.keypair.signPersonalMessage(new TextEncoder().encode(message));
+    const parsed = parseSerializedSignature(
+      typeof signed === "string" ? signed : signed.signature
+    ) as any;
+    const scheme = String(parsed.signatureScheme);
+    const flag = /ed25519/i.test(scheme) ? 1 : 0;
+    if (!/ed25519|secp256k1|secp256r1/i.test(scheme)) {
+      throw new Error(`Unsupported signature scheme for signed payload: ${scheme}`);
+    }
+    return {
+      userAddress: this.toUnifiedSuiAddressBytes(addressForVector),
+      salt: String(salt),
+      expiration: String(expiration),
+      signature: [...Array.from(Buffer.from(parsed.signature as any)), flag],
+      publicKey: Array.from(Buffer.from(parsed.publicKey as any)),
+    };
+  }
+
+  private async signUserAmountActionPayload(args: {
+    action: "AddMargin" | "RemoveMargin";
+    market: string;
+    user: string;
+    amount: string;
+  }): Promise<{
+    userAddress: number[];
+    salt: string;
+    expiration: string;
+    signature: number[];
+    publicKey: number[];
+  }> {
+    return this.signDipcoinActionPayload([
+      ["action", args.action],
+      ["market", this.normalizeSuiAddress(args.market)],
+      ["user", this.toUnifiedSuiAddress(args.user)],
+      ["amount", args.amount],
+    ], args.user);
+  }
+
+  private async signVaultCreatePayload(args: {
+    creator: string;
+    name: string;
+    trader: string;
+    maxCap: string;
+    minDepositAmount: string;
+    creatorMinimumShareRatio: string;
+    creatorProfitShareRatio: string;
+    initialAmount: string;
+  }) {
+    return this.signDipcoinActionPayload([
+      ["action", "VaultCreate"],
+      ["creator", this.toUnifiedSuiAddress(args.creator)],
+      ["name", args.name],
+      ["trader", this.toUnifiedSuiAddress(args.trader)],
+      ["maxCap", args.maxCap],
+      ["minDepositAmount", args.minDepositAmount],
+      ["creatorMinimumShareRatio", args.creatorMinimumShareRatio],
+      ["creatorProfitShareRatio", args.creatorProfitShareRatio],
+      ["initialAmount", args.initialAmount],
+    ], args.creator);
+  }
+
+  private async signVaultUserAmountPayload(
+    action: "VaultDeposit" | "VaultRequestWithdraw",
+    vaultID: string,
+    user: string,
+    amount: string
+  ) {
+    return this.signDipcoinActionPayload([
+      ["action", action],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["user", this.toUnifiedSuiAddress(user)],
+      ["amount", amount],
+    ], user);
+  }
+
+  private async signVaultUserPayload(
+    action: "VaultClaimClosedFunds" | "VaultClose",
+    vaultID: string,
+    user: string
+  ) {
+    return this.signDipcoinActionPayload([
+      ["action", action],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["user", this.toUnifiedSuiAddress(user)],
+    ], user);
+  }
+
+  private async signVaultSetTraderPayload(vaultID: string, creator: string, newTrader: string) {
+    return this.signDipcoinActionPayload([
+      ["action", "VaultSetTrader"],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["creator", this.toUnifiedSuiAddress(creator)],
+      ["newTrader", this.toUnifiedSuiAddress(newTrader)],
+    ], creator);
+  }
+
+  private async signVaultSetSubTraderPayload(
+    vaultID: string,
+    trader: string,
+    subTrader: string,
+    status: boolean
+  ) {
+    return this.signDipcoinActionPayload([
+      ["action", "VaultSetSubTrader"],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["trader", this.toUnifiedSuiAddress(trader)],
+      ["subTrader", this.toUnifiedSuiAddress(subTrader)],
+      ["status", String(status)],
+    ], trader);
+  }
+
+  private async signVaultDepositStatusPayload(vaultID: string, creator: string, status: boolean) {
+    return this.signDipcoinActionPayload([
+      ["action", "VaultSetDepositStatus"],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["creator", this.toUnifiedSuiAddress(creator)],
+      ["status", String(status)],
+    ], creator);
+  }
+
+  private async signVaultCreatorAmountPayload(
+    action: "VaultSetMaxCap" | "VaultSetMinDepositAmount",
+    vaultID: string,
+    creator: string,
+    amount: string
+  ) {
+    return this.signDipcoinActionPayload([
+      ["action", action],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["creator", this.toUnifiedSuiAddress(creator)],
+      ["amount", amount],
+    ], creator);
+  }
+
+  private async signVaultAutoClosePayload(
+    vaultID: string,
+    creator: string,
+    autoCloseOnWithdraw: boolean
+  ) {
+    return this.signDipcoinActionPayload([
+      ["action", "VaultSetAutoCloseOnWithdraw"],
+      ["vault", this.normalizeSuiAddress(vaultID)],
+      ["creator", this.toUnifiedSuiAddress(creator)],
+      ["autoCloseOnWithdraw", String(autoCloseOnWithdraw)],
+    ], creator);
+  }
+
   private getDeploymentProtocolConfigId(): string {
     const protocolId = this.deploymentConfig?.objects?.ProtocolConfig?.id;
     if (!protocolId) {
@@ -2147,6 +2339,17 @@ export class DipCoinPerpSDK {
     action: "add" | "remove"
   ): Promise<Transaction | undefined> {
     const payload = this.buildMarginCallArgs(params, action);
+    const signedMarket =
+      payload.perpID || (payload.market ? this.resolvePerpIdFromDeployment(payload.market) : undefined);
+    if (!signedMarket) {
+      throw new Error("PerpetualID is required for signed margin payload");
+    }
+    const signedPayload = await this.signUserAmountActionPayload({
+      action: action === "add" ? "AddMargin" : "RemoveMargin",
+      market: signedMarket,
+      user: payload.account,
+      amount: payload.amount,
+    });
     // v6+ requires PriceFeed to be fresh (~60s) before the margin call. Operator updates
     // are only hourly so we always fetch + prepend our own update_price_feed step.
     const sym = payload.market || params.symbol;
@@ -2155,9 +2358,19 @@ export class DipCoinPerpSDK {
     const baseTx = new Transaction();
     this.appendPriceFeedUpdates(baseTx, Array.from(feeds.values()));
     if (action === "add") {
-      return buildAddMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
+      return buildAddMarginTx(
+        this.deploymentConfig,
+        { ...payload, signedPayload },
+        baseTx,
+        params.gasBudget
+      );
     }
-    return buildRemoveMarginTx(this.deploymentConfig, payload, baseTx, params.gasBudget);
+    return buildRemoveMarginTx(
+      this.deploymentConfig,
+      { ...payload, signedPayload },
+      baseTx,
+      params.gasBudget
+    );
   }
 
   private async buildUpdatePriceTransaction(symbol: string): Promise<Transaction | undefined> {
@@ -2500,20 +2713,114 @@ export class DipCoinPerpSDK {
     return id;
   }
 
-  /**
-   * Fetch signed price update bytes for the given markets from the DipCoin pricing service.
-   * Each entry's payload/signature/publicKey is consumed by
-   * `<pkg>::price_feed::update_price_feed(PriceFeed, Clock, payload, signature, publicKey)`.
-   *
-   * The on-chain v6 contract requires the PriceFeed entry for a perp to be fresh (~60s)
-   * for any margin/vault NAV write. The CLI prepends one update_price_feed call per
-   * perp involved in the tx before the actual margin/vault call.
-   */
-  private async fetchSignedPriceFeeds(
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private getSignedPriceFeedTimestamps(payload: Uint8Array): number[] {
+    let offset = 0;
+    let length = 0;
+    let shift = 0;
+
+    while (offset < payload.length) {
+      const byte = payload[offset++];
+      length |= (byte & 0x7f) << shift;
+      if ((byte & 0x80) === 0) break;
+      shift += 7;
+    }
+
+    if (length <= 0) return [];
+
+    const timestamps: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const timestampOffset = offset + 32 + 16;
+      if (timestampOffset + 8 > payload.length) return [];
+      const view = new DataView(
+        payload.buffer,
+        payload.byteOffset + timestampOffset,
+        8
+      );
+      timestamps.push(Number(view.getBigUint64(0, true)));
+      offset = timestampOffset + 8 + 2;
+    }
+
+    return timestamps;
+  }
+
+  private getSignedPriceFeedMaxTimestamp(payload: Uint8Array): number | undefined {
+    const timestamps = this.getSignedPriceFeedTimestamps(payload);
+    return timestamps.length ? Math.max(...timestamps) : undefined;
+  }
+
+  private async waitForSignedPriceFeedClock(payload: Uint8Array): Promise<void> {
+    const timestamp = this.getSignedPriceFeedMaxTimestamp(payload);
+    if (!timestamp) return;
+
+    // price_feed::collect_price_updates accepts timestamps no more than 1500ms
+    // ahead of Sui Clock and no more than 60000ms behind it. The DipCoin API can
+    // sign with wall-clock time while Sui Clock lags, so wait for the chain clock
+    // to catch up before submitting the PTB. Public RPC backends can disagree by
+    // a few seconds, so target a timestamp that is already ~10s old.
+    const start = Date.now();
+    while (true) {
+      const clock = await this.suiClient.getObject({
+        id: "0x6",
+        options: { showContent: true },
+      });
+      const clockMs = Number((clock.data?.content as any)?.fields?.timestamp_ms);
+      if (!Number.isFinite(clockMs)) return;
+
+      const waitMs = timestamp - clockMs + 10_000;
+      if (waitMs <= 0) return;
+      if (Date.now() - start + waitMs > 180_000) {
+        throw new Error(
+          `Signed price feed is too far ahead of Sui Clock (${Math.ceil(
+            waitMs / 1000
+          )}s). Try again later.`
+        );
+      }
+      await this.sleep(Math.min(waitMs, 15_000));
+    }
+  }
+
+  private async waitForSignedPriceFeedEntries(
+    entries: { payload: Uint8Array }[]
+  ): Promise<void> {
+    const timestamps = entries.flatMap((entry) => this.getSignedPriceFeedTimestamps(entry.payload));
+    if (!timestamps.length) return;
+
+    const maxTimestamp = Math.max(...timestamps);
+    const minTimestamp = Math.min(...timestamps);
+    const start = Date.now();
+    while (true) {
+      const clock = await this.suiClient.getObject({
+        id: "0x6",
+        options: { showContent: true },
+      });
+      const clockMs = Number((clock.data?.content as any)?.fields?.timestamp_ms);
+      if (!Number.isFinite(clockMs)) return;
+
+      const waitMs = maxTimestamp - clockMs + 10_000;
+      if (waitMs <= 0) {
+        if (clockMs - minTimestamp > 55_000) {
+          throw new Error("Signed price feed expired while waiting for Sui Clock");
+        }
+        return;
+      }
+      if (Date.now() - start + waitMs > 180_000) {
+        throw new Error(
+          `Signed price feed is too far ahead of Sui Clock (${Math.ceil(
+            waitMs / 1000
+          )}s). Try again later.`
+        );
+      }
+      await this.sleep(Math.min(waitMs, 15_000));
+    }
+  }
+
+  private async requestSignedPriceFeedEntry(
     symbols: string[]
-  ): Promise<Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>> {
-    const out = new Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>();
-    if (symbols.length === 0) return out;
+  ): Promise<{ payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }> {
     const qs = symbols.map((s) => `symbols=${encodeURIComponent(s)}`).join("&");
     const resp = await this.httpClient.get<{
       priceList?: { symbol: string }[];
@@ -2532,11 +2839,99 @@ export class DipCoinPerpSDK {
     if (!d.payload || !d.signature || !d.publicKey) {
       throw new Error("Signed price feed response missing payload/signature/publicKey");
     }
-    const entry = { payload: b64(d.payload), signature: b64(d.signature), publicKey: b64(d.publicKey) };
-    // API returns a single bundle covering all requested symbols' prices in priceList,
-    // but only one (payload, signature, publicKey) tuple. Map every requested symbol to it.
-    for (const sym of symbols) out.set(sym, entry);
-    return out;
+    return { payload: b64(d.payload), signature: b64(d.signature), publicKey: b64(d.publicKey) };
+  }
+
+  /**
+   * Fetch signed price update bytes for the given markets from the DipCoin pricing service.
+   * Each entry's payload/signature/publicKey is consumed by
+   * `<pkg>::price_feed::update_price_feed(PriceFeed, Clock, payload, signature, publicKey)`.
+   *
+   * The on-chain v6 contract requires the PriceFeed entry for a perp to be fresh (~60s)
+   * for any margin/vault NAV write. The CLI prepends one update_price_feed call per
+   * perp involved in the tx before the actual margin/vault call.
+   */
+  private async fetchSignedPriceFeeds(
+    symbols: string[]
+  ): Promise<Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>> {
+    const out = new Map<string, { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }>();
+    if (symbols.length === 0) return out;
+    let lastClockError: unknown;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const entry = await this.requestSignedPriceFeedEntry(symbols);
+      try {
+        await this.waitForSignedPriceFeedEntries([entry]);
+      } catch (error) {
+        const message = String((error as Error)?.message || error);
+        if (!message.includes("too far ahead") && !message.includes("expired")) {
+          throw error;
+        }
+        lastClockError = error;
+        await this.sleep(2_000 * (attempt + 1));
+        continue;
+      }
+      // API returns a single bundle covering all requested symbols' prices in priceList,
+      // but only one (payload, signature, publicKey) tuple. Map every requested symbol to it.
+      for (const sym of symbols) out.set(sym, entry);
+      return out;
+    }
+    throw lastClockError || new Error("Failed to fetch a usable signed price feed");
+  }
+
+  private async fetchSignedPriceFeedChunks(
+    symbols: string[],
+    chunkSize = 20
+  ): Promise<{ payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }[]> {
+    if (symbols.length === 0) return [];
+    let lastClockError: unknown;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const entries: { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }[] = [];
+      for (let i = 0; i < symbols.length; i += chunkSize) {
+        entries.push(await this.requestSignedPriceFeedEntry(symbols.slice(i, i + chunkSize)));
+      }
+      try {
+        await this.waitForSignedPriceFeedEntries(entries);
+        await this.validateSignedPriceFeedEntries(entries);
+      } catch (error) {
+        const message = String((error as Error)?.message || error);
+        if (
+          !message.includes("too far ahead") &&
+          !message.includes("expired") &&
+          !message.includes("price_feed")
+        ) {
+          throw error;
+        }
+        lastClockError = error;
+        await this.sleep(2_000 * (attempt + 1));
+        continue;
+      }
+      return Array.from(
+        new Map(
+          entries.map((feed) => [
+            Buffer.from(feed.payload).toString("hex"),
+            feed,
+          ])
+        ).values()
+      );
+    }
+    throw lastClockError || new Error("Failed to fetch usable signed price feed chunks");
+  }
+
+  private async validateSignedPriceFeedEntries(
+    entries: { payload: Uint8Array; signature: Uint8Array; publicKey: Uint8Array }[]
+  ): Promise<void> {
+    if (!entries.length) return;
+    const tx = new Transaction();
+    this.appendPriceFeedUpdates(tx, entries);
+    tx.setSender(this.walletAddress);
+    const result = await this.suiClient.devInspectTransactionBlock({
+      sender: this.walletAddress,
+      transactionBlock: tx,
+    });
+    const status = result.effects?.status?.status;
+    if (status === "success") return;
+    const error = result.effects?.status?.error || result.error || "unknown price_feed error";
+    throw new Error(`price_feed validation failed: ${error}`);
   }
 
   /**
@@ -2603,11 +2998,16 @@ export class DipCoinPerpSDK {
     // a single update_price_feed step. Then iterate the on-chain perpetual_registry (which is
     // what new_vault_nav populates, and is_nav_filled requires every entry to be computed).
     const priceFeedId = this.getPriceFeedId();
-    const allSymbols = this.getMarketSymbols();
-    const feeds = await this.fetchSignedPriceFeeds(allSymbols);
-    // Dedup the bundle entries (the API returns one tuple covering all requested symbols).
-    const uniqFeeds = Array.from(new Map(Array.from(feeds.values()).map((f) => [Buffer.from(f.payload).toString("hex"), f])).values());
-    this.appendPriceFeedUpdates(t, uniqFeeds);
+    const configSymbols = this.getMarketSymbols();
+    const configSymbolSet = new Set(configSymbols);
+    const apiSymbols = (await this.getCachedTradingPairs())
+      .map((pair) => pair.symbol)
+      .filter((symbol): symbol is string => Boolean(symbol) && !configSymbolSet.has(symbol));
+    const updateFeeds = [
+      ...(await this.fetchSignedPriceFeedChunks(configSymbols, 40)),
+      ...(await this.fetchSignedPriceFeedChunks(apiSymbols, 40)),
+    ];
+    this.appendPriceFeedUpdates(t, updateFeeds);
 
     const perpetualIds = await this.getOnChainPerpetualIds();
 
@@ -2656,8 +3056,22 @@ export class DipCoinPerpSDK {
   }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const creator = this.walletAddress;
+    const maxCap = formatNormalToWei(args.maxCap);
+    const minDepositAmount = formatNormalToWei(args.minDepositAmount);
+    const initialAmount = formatNormalToWei(args.initialAmount);
+    const signed = await this.signVaultCreatePayload({
+      creator,
+      name: args.name,
+      trader: args.trader,
+      maxCap,
+      minDepositAmount,
+      creatorMinimumShareRatio: args.creatorMinimumShareRatio,
+      creatorProfitShareRatio: args.creatorProfitShareRatio,
+      initialAmount,
+    });
     tx.moveCall({
-      target: `${vaultPkg}::vault::create_vault`,
+      target: `${vaultPkg}::vault::create_vault_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object("0x6"),
@@ -2665,13 +3079,18 @@ export class DipCoinPerpSDK {
         tx.object(this.getSubAccountsId()),
         tx.object(this.getBankId()),
         tx.object(this.getTxIndexerId()),
+        tx.pure.vector("u8", signed.userAddress),
         tx.pure.string(args.name),
-        tx.pure.address(args.trader),
-        tx.pure.u128(formatNormalToWei(args.maxCap)),
-        tx.pure.u128(formatNormalToWei(args.minDepositAmount)),
+        tx.pure.vector("u8", this.toUnifiedSuiAddressBytes(args.trader)),
+        tx.pure.u128(maxCap),
+        tx.pure.u128(minDepositAmount),
         tx.pure.u128(args.creatorMinimumShareRatio),
         tx.pure.u128(args.creatorProfitShareRatio),
-        tx.pure.u128(formatNormalToWei(args.initialAmount)),
+        tx.pure.u128(initialAmount),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2684,17 +3103,30 @@ export class DipCoinPerpSDK {
   async depositToVault(args: { vaultID: string; amount: number; markets?: string[] }) {
     const { nav, tx } = await this.buildVaultNavTransaction(args.vaultID, args.markets);
     const vaultPkg = this.getVaultPackageId();
+    const amount = formatNormalToWei(args.amount);
+    const signed = await this.signVaultUserAmountPayload(
+      "VaultDeposit",
+      args.vaultID,
+      this.walletAddress,
+      amount
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::deposit`,
+      target: `${vaultPkg}::vault::deposit_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object("0x6"),
         tx.object(this.getBankId()),
+        tx.object(this.getSubAccountsId()),
         tx.object(this.getTxIndexerId()),
         tx.object(args.vaultID),
         nav,
-        tx.pure.u128(formatNormalToWei(args.amount)),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(amount),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2706,33 +3138,30 @@ export class DipCoinPerpSDK {
    */
   async requestWithdrawFromVault(args: { vaultID: string; shares: number }) {
     const tx = new Transaction();
-
-    // On mainnet, update Pyth oracle prices before withdraw (contract checks freshness)
-    if (this.options.network === "mainnet") {
-      this.ensurePythClients();
-      if (this.priceServiceConnection && this.pythClient) {
-        const symbols = this.getMarketSymbols();
-        const priceIds: string[] = [];
-        for (const sym of symbols) {
-          const feedId = await this.resolvePriceFeedId(sym);
-          if (feedId) priceIds.push(feedId);
-        }
-        if (priceIds.length > 0) {
-          const priceUpdateData = await this.priceServiceConnection.getPriceFeedsUpdateData(priceIds);
-          await this.pythClient.updatePriceFeeds(tx, priceUpdateData, priceIds);
-        }
-      }
-    }
-
     const vaultPkg = this.getVaultPackageId();
+    const shares = formatNormalToWei(args.shares);
+    const signed = await this.signVaultUserAmountPayload(
+      "VaultRequestWithdraw",
+      args.vaultID,
+      this.walletAddress,
+      shares
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::request_withdraw`,
+      target: `${vaultPkg}::vault::request_withdraw_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object("0x6"),
+        tx.object(this.getBankId()),
+        tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
         tx.object(args.vaultID),
-        tx.pure.u128(formatNormalToWei(args.shares)),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(shares),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2753,7 +3182,7 @@ export class DipCoinPerpSDK {
       elements: args.withdrawalRequestIDs.map((id) => tx.object(id)),
     });
     tx.moveCall({
-      target: `${vaultPkg}::vault::fill_withdrawal_requests`,
+      target: `${vaultPkg}::vault::fill_withdrawal_requests_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
@@ -2775,16 +3204,27 @@ export class DipCoinPerpSDK {
   async closeVault(args: { vaultID: string; markets?: string[] }) {
     const { nav, tx } = await this.buildVaultNavTransaction(args.vaultID, args.markets);
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultUserPayload(
+      "VaultClose",
+      args.vaultID,
+      this.walletAddress
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::close_vault_v2`,
+      target: `${vaultPkg}::vault::close_vault_v3`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
         tx.object(args.vaultID),
         tx.object(this.getBankId()),
         tx.object("0x6"),
         nav,
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2816,14 +3256,26 @@ export class DipCoinPerpSDK {
   async claimClosedVaultFunds(args: { vaultID: string }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultUserPayload(
+      "VaultClaimClosedFunds",
+      args.vaultID,
+      this.walletAddress
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::claim_closed_vault_funds`,
+      target: `${vaultPkg}::vault::claim_closed_vault_funds_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(this.getBankId()),
+        tx.object(this.getSubAccountsId()),
         tx.object(this.getTxIndexerId()),
         tx.object(args.vaultID),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2836,14 +3288,27 @@ export class DipCoinPerpSDK {
   async setVaultTrader(args: { vaultID: string; newTrader: string }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultSetTraderPayload(
+      args.vaultID,
+      this.walletAddress,
+      args.newTrader
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_trader`,
+      target: `${vaultPkg}::vault::set_trader_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
         tx.object(this.getSubAccountsId()),
-        tx.pure.address(args.newTrader),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.vector("u8", this.toUnifiedSuiAddressBytes(args.newTrader)),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2856,15 +3321,29 @@ export class DipCoinPerpSDK {
   async setVaultSubTrader(args: { vaultID: string; subTrader: string; status: boolean }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultSetSubTraderPayload(
+      args.vaultID,
+      this.walletAddress,
+      args.subTrader,
+      args.status
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_sub_trader`,
+      target: `${vaultPkg}::vault::set_sub_trader_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
         tx.object(this.getSubAccountsId()),
-        tx.pure.address(args.subTrader),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.vector("u8", this.toUnifiedSuiAddressBytes(args.subTrader)),
         tx.pure.bool(args.status),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2877,13 +3356,27 @@ export class DipCoinPerpSDK {
   async setVaultDepositStatus(args: { vaultID: string; status: boolean }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultDepositStatusPayload(
+      args.vaultID,
+      this.walletAddress,
+      args.status
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_deposit_status`,
+      target: `${vaultPkg}::vault::set_deposit_status_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
+        tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
         tx.pure.bool(args.status),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2896,13 +3389,29 @@ export class DipCoinPerpSDK {
   async setVaultMaxCap(args: { vaultID: string; maxCap: number }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const amount = formatNormalToWei(args.maxCap);
+    const signed = await this.signVaultCreatorAmountPayload(
+      "VaultSetMaxCap",
+      args.vaultID,
+      this.walletAddress,
+      amount
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_max_cap`,
+      target: `${vaultPkg}::vault::set_max_cap_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
-        tx.pure.u128(formatNormalToWei(args.maxCap)),
+        tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(amount),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2915,13 +3424,29 @@ export class DipCoinPerpSDK {
   async setVaultMinDepositAmount(args: { vaultID: string; minDepositAmount: number }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const amount = formatNormalToWei(args.minDepositAmount);
+    const signed = await this.signVaultCreatorAmountPayload(
+      "VaultSetMinDepositAmount",
+      args.vaultID,
+      this.walletAddress,
+      amount
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_min_deposit_amount`,
+      target: `${vaultPkg}::vault::set_min_deposit_amount_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
-        tx.pure.u128(formatNormalToWei(args.minDepositAmount)),
+        tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
+        tx.pure.u128(amount),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });
@@ -2934,13 +3459,27 @@ export class DipCoinPerpSDK {
   async setVaultAutoCloseOnWithdraw(args: { vaultID: string; autoCloseOnWithdraw: boolean }) {
     const tx = new Transaction();
     const vaultPkg = this.getVaultPackageId();
+    const signed = await this.signVaultAutoClosePayload(
+      args.vaultID,
+      this.walletAddress,
+      args.autoCloseOnWithdraw
+    );
     tx.moveCall({
-      target: `${vaultPkg}::vault::set_auto_close_on_withdraw`,
+      target: `${vaultPkg}::vault::set_auto_close_on_withdraw_v2`,
       arguments: [
         tx.object(this.getDeploymentProtocolConfigId()),
         tx.object(this.getVaultConfigId()),
         tx.object(args.vaultID),
+        tx.object(this.getSubAccountsId()),
+        tx.object(this.getTxIndexerId()),
+        tx.object(this.getBankId()),
+        tx.object("0x6"),
+        tx.pure.vector("u8", signed.userAddress),
         tx.pure.bool(args.autoCloseOnWithdraw),
+        tx.pure.u128(signed.salt),
+        tx.pure.u64(signed.expiration),
+        tx.pure.vector("u8", signed.signature),
+        tx.pure.vector("u8", signed.publicKey),
       ],
       typeArguments: [this.getCurrencyType()],
     });

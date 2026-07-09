@@ -9,10 +9,11 @@ import { fromExportedKeypair } from "../../src/utils";
 const globalEnv = path.join(os.homedir(), ".config", "dipcoin", "env");
 const localEnv = path.resolve(process.cwd(), ".env");
 
+if (fs.existsSync(globalEnv)) {
+  dotenv.config({ path: globalEnv });
+}
 if (fs.existsSync(localEnv)) {
   dotenv.config({ path: localEnv });
-} else if (fs.existsSync(globalEnv)) {
-  dotenv.config({ path: globalEnv });
 }
 
 import { initDipCoinPerpSDK, DipCoinPerpSDK } from "../../src/sdk";
@@ -80,7 +81,8 @@ export function getSDK(): DipCoinPerpSDK {
 
   const keypair = getKeypair();
   const network = getNetwork();
-  cachedSDK = initDipCoinPerpSDK(keypair, { network });
+  const customRpc = process.env.DIPCOIN_RPC_URL || process.env.SUI_RPC_URL;
+  cachedSDK = initDipCoinPerpSDK(keypair, { network, customRpc });
   tryAutoBindReferral(cachedSDK);
   return cachedSDK;
 }

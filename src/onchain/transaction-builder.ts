@@ -63,6 +63,14 @@ function getPriceFeedId(deployment: any): string {
   return id;
 }
 
+type SignedUserPayload = {
+  userAddress: number[];
+  salt: string | number | bigint;
+  expiration: string | number | bigint;
+  signature: number[];
+  publicKey: number[];
+};
+
 function getPriceOracleObjectId(deployment: any, market?: string): string {
   const m = market?.toUpperCase() || "ETH-PERP";
   const id = deployment?.markets?.[m]?.Objects?.PriceInfoObject?.id;
@@ -111,6 +119,7 @@ export function buildAddMarginTx(
     perpID?: string;
     subAccountsMapID?: string;
     market?: string;
+    signedPayload?: SignedUserPayload;
   },
   tx?: Transaction,
   gasBudget?: number,
@@ -121,21 +130,44 @@ export function buildAddMarginTx(
   if (sender) t.setSender(sender);
 
   const packageId = getPackageId(deployment);
-  t.moveCall({
-    target: `${packageId}::exchange::add_margin_v3`,
-    arguments: [
-      t.object(getProtocolConfigId(deployment)),
-      t.object(CLOCK_OBJECT_ID),
-      t.object(args.perpID || getPerpetualId(deployment, args.market)),
-      t.object(getBankId(deployment)),
-      t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
-      t.object(getTxIndexerId(deployment)),
-      t.object(getPriceFeedId(deployment)),
-      t.pure.address(args.account || sender || ""),
-      t.pure.u128(args.amount.toString()),
-    ],
-    typeArguments: [getCurrencyType(deployment)],
-  });
+  const signed = args.signedPayload;
+  if (signed) {
+    t.moveCall({
+      target: `${packageId}::exchange::add_margin_v4`,
+      arguments: [
+        t.object(getProtocolConfigId(deployment)),
+        t.object(CLOCK_OBJECT_ID),
+        t.object(args.perpID || getPerpetualId(deployment, args.market)),
+        t.object(getBankId(deployment)),
+        t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
+        t.object(getTxIndexerId(deployment)),
+        t.object(getPriceFeedId(deployment)),
+        t.pure.vector("u8", signed.userAddress),
+        t.pure.u128(args.amount.toString()),
+        t.pure.u128(signed.salt.toString()),
+        t.pure.u64(signed.expiration.toString()),
+        t.pure.vector("u8", signed.signature),
+        t.pure.vector("u8", signed.publicKey),
+      ],
+      typeArguments: [getCurrencyType(deployment)],
+    });
+  } else {
+    t.moveCall({
+      target: `${packageId}::exchange::add_margin_v3`,
+      arguments: [
+        t.object(getProtocolConfigId(deployment)),
+        t.object(CLOCK_OBJECT_ID),
+        t.object(args.perpID || getPerpetualId(deployment, args.market)),
+        t.object(getBankId(deployment)),
+        t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
+        t.object(getTxIndexerId(deployment)),
+        t.object(getPriceFeedId(deployment)),
+        t.pure.address(args.account || sender || ""),
+        t.pure.u128(args.amount.toString()),
+      ],
+      typeArguments: [getCurrencyType(deployment)],
+    });
+  }
   return t;
 }
 
@@ -147,6 +179,7 @@ export function buildRemoveMarginTx(
     perpID?: string;
     subAccountsMapID?: string;
     market?: string;
+    signedPayload?: SignedUserPayload;
   },
   tx?: Transaction,
   gasBudget?: number,
@@ -157,21 +190,44 @@ export function buildRemoveMarginTx(
   if (sender) t.setSender(sender);
 
   const packageId = getPackageId(deployment);
-  t.moveCall({
-    target: `${packageId}::exchange::remove_margin_v3`,
-    arguments: [
-      t.object(getProtocolConfigId(deployment)),
-      t.object(CLOCK_OBJECT_ID),
-      t.object(args.perpID || getPerpetualId(deployment, args.market)),
-      t.object(getBankId(deployment)),
-      t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
-      t.object(getTxIndexerId(deployment)),
-      t.object(getPriceFeedId(deployment)),
-      t.pure.address(args.account || sender || ""),
-      t.pure.u128(args.amount.toString()),
-    ],
-    typeArguments: [getCurrencyType(deployment)],
-  });
+  const signed = args.signedPayload;
+  if (signed) {
+    t.moveCall({
+      target: `${packageId}::exchange::remove_margin_v4`,
+      arguments: [
+        t.object(getProtocolConfigId(deployment)),
+        t.object(CLOCK_OBJECT_ID),
+        t.object(args.perpID || getPerpetualId(deployment, args.market)),
+        t.object(getBankId(deployment)),
+        t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
+        t.object(getTxIndexerId(deployment)),
+        t.object(getPriceFeedId(deployment)),
+        t.pure.vector("u8", signed.userAddress),
+        t.pure.u128(args.amount.toString()),
+        t.pure.u128(signed.salt.toString()),
+        t.pure.u64(signed.expiration.toString()),
+        t.pure.vector("u8", signed.signature),
+        t.pure.vector("u8", signed.publicKey),
+      ],
+      typeArguments: [getCurrencyType(deployment)],
+    });
+  } else {
+    t.moveCall({
+      target: `${packageId}::exchange::remove_margin_v3`,
+      arguments: [
+        t.object(getProtocolConfigId(deployment)),
+        t.object(CLOCK_OBJECT_ID),
+        t.object(args.perpID || getPerpetualId(deployment, args.market)),
+        t.object(getBankId(deployment)),
+        t.object(args.subAccountsMapID || getSubAccountsId(deployment)),
+        t.object(getTxIndexerId(deployment)),
+        t.object(getPriceFeedId(deployment)),
+        t.pure.address(args.account || sender || ""),
+        t.pure.u128(args.amount.toString()),
+      ],
+      typeArguments: [getCurrencyType(deployment)],
+    });
+  }
   return t;
 }
 

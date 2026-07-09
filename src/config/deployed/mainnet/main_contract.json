@@ -6,9 +6,10 @@
     "0x3d11bc46bb4fbcdef7d17f69ac10e3a471d8f09cf104f94b5113dc2cd1c44fd2",
     "0x857c7c6e50c5e6574966cf110897b99e8a510f8346b0a60a7604fb917b155086",
     "0x92df31c1b3e14ac7e54d6e606341f36d2743a1cf45119fda4b4efb83d623276f",
-    "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c"
+    "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c",
+    "0x47f361827c432c2dc286946f73c497509e4ef986311a716af9efbe47db0e1cb4"
   ],
-  "vaultPackage": "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c",
+  "vaultPackage": "0x47f361827c432c2dc286946f73c497509e4ef986311a716af9efbe47db0e1cb4",
   "objects": {
     "ExchangeAdminCap": {
       "id": "0x11d6aebffbd2bd7e149bfa73353d8bfa57942e67da0d730fec65b8c8edaaa7fe",
@@ -103,7 +104,7 @@
     "PriceFeed": {
       "id": "0x7740de52df896ff8296ed010c67c8604669263c43cf43daa685e7188b6a8bbe4",
       "owner": "Shared",
-      "dataType": "0x6671fbc069c94343bb217ea450993c3168cd8ecb433d1c6be339dafcfb53e68c::price_feed::PriceFeed",
+      "dataType": "0x857c7c6e50c5e6574966cf110897b99e8a510f8346b0a60a7604fb917b155086::price_feed::PriceFeed",
       "package_version": 4
     }
   },
