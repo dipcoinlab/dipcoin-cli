@@ -26,3 +26,4 @@ export {
   removeMargin,
   setSubAccount,
 } from "./exchange";
+export { signAndExecuteTransactionWithFreshGas } from "./gas";

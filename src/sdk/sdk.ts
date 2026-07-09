@@ -12,6 +12,7 @@ import { HttpClient } from "../services/httpClient";
 import {
   getOrderMessageForUIWallet,
   executeTxBlock,
+  signAndExecuteTransactionWithFreshGas,
   getDeploymentPerpetualID,
   getOraclePrice as getOnChainOraclePrice,
   depositToBank as onChainDepositToBank,
@@ -3034,11 +3035,9 @@ export class DipCoinPerpSDK {
   }
 
   private async signAndExecuteVaultTx(tx: Transaction): Promise<SuiTransactionBlockResponse> {
-    tx.setSender(this.keypair.getPublicKey().toSuiAddress());
-    return await this.suiClient.signAndExecuteTransaction({
-      signer: this.keypair,
-      transaction: tx,
-      options: { showEffects: true, showObjectChanges: true },
+    return signAndExecuteTransactionWithFreshGas(this.suiClient, tx, this.keypair, {
+      showEffects: true,
+      showObjectChanges: true,
     });
   }
 

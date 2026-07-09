@@ -18,21 +18,18 @@ import {
   getPerpetualId,
   getPriceOracleObjectId,
 } from "./transaction-builder";
+import { signAndExecuteTransactionWithFreshGas } from "./gas";
 
 export async function executeTxBlock(
   suiClient: SuiClient,
   tx: Transaction,
   signer: Keypair
 ): Promise<SuiTransactionBlockResponse> {
-  return suiClient.signAndExecuteTransaction({
-    signer,
-    transaction: tx,
-    options: {
-      showObjectChanges: true,
-      showEffects: true,
-      showEvents: true,
-      showInput: true,
-    },
+  return signAndExecuteTransactionWithFreshGas(suiClient, tx, signer, {
+    showObjectChanges: true,
+    showEffects: true,
+    showEvents: true,
+    showInput: true,
   });
 }
 
