@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import BigNumber from "bignumber.js";
 import { getSDK } from "../utils/sdk-factory";
 import {
   isJson,
@@ -188,6 +189,9 @@ export function registerPositionCommands(program: Command) {
     .option("--sl-trigger <price>", "SL trigger price")
     .option("--sl-type <type>", "SL order type: market or limit", "market")
     .option("--sl-price <price>", "SL order price (for limit)")
+    .option("--vault <address>", "Target a vault position (vault object ID)")
+    .option("--tp-plan-id <id>", "Existing TP plan ID to edit")
+    .option("--sl-plan-id <id>", "Existing SL plan ID to edit")
     .action(async (symbol, opts) => {
       try {
         const sdk = getSDK();
@@ -195,12 +199,123 @@ export function registerPositionCommands(program: Command) {
         const perpId = await sdk.getPerpetualID(symbol);
         if (!perpId) return handleError(`PerpetualID not found for ${symbol}`);
 
-        const side = opts.side.toUpperCase() === "BUY" ? OrderSide.BUY : OrderSide.SELL;
+        const sideInput = String(opts.side).toUpperCase();
+        if (sideInput !== OrderSide.BUY && sideInput !== OrderSide.SELL) {
+          return handleError(`--side must be buy or sell, got ${opts.side}`);
+        }
+        const side = sideInput as OrderSide;
         const isLong = side === OrderSide.SELL;
+
+        if (!opts.tpTrigger && !opts.slTrigger) {
+          return handleError("At least one of --tp-trigger or --sl-trigger is required.");
+        }
+        if (opts.tpPlanId && !opts.tpTrigger) {
+          return handleError("--tp-plan-id requires --tp-trigger.");
+        }
+        if (opts.slPlanId && !opts.slTrigger) {
+          return handleError("--sl-plan-id requires --sl-trigger.");
+        }
+
+        let tpPlanId = opts.tpPlanId as string | number | undefined;
+        let slPlanId = opts.slPlanId as string | number | undefined;
+        const shouldFindTpPlan = Boolean(opts.tpTrigger && !tpPlanId);
+        const shouldFindSlPlan = Boolean(opts.slTrigger && !slPlanId);
+
+        const parentAddress = opts.vault || sdk.address;
+        const positionsResult = await sdk.getPositions({ parentAddress, symbol });
+        if (!positionsResult.status) {
+          return handleError(positionsResult.error || "Failed to fetch position");
+        }
+
+        const matchingPositions = (positionsResult.data || []).filter(
+          (position) => position.symbol === symbol
+        );
+        if (matchingPositions.length !== 1) {
+          return handleError(
+            matchingPositions.length === 0
+              ? `No open position for ${symbol}.`
+              : `Multiple positions found for ${symbol}; cannot choose one safely.`
+          );
+        }
+
+        const activePosition = matchingPositions[0];
+        const positionSide = String(activePosition.side).toUpperCase();
+        const expectedClosingSide =
+          positionSide === "BUY" || positionSide === "LONG"
+            ? OrderSide.SELL
+            : positionSide === "SELL" || positionSide === "SHORT"
+            ? OrderSide.BUY
+            : undefined;
+        if (!expectedClosingSide) {
+          return handleError(`Unsupported position side: ${activePosition.side}`);
+        }
+        if (side !== expectedClosingSide) {
+          return handleError(
+            `--side must be ${expectedClosingSide.toLowerCase()} to close a ${positionSide} position.`
+          );
+        }
+
+        const requestedQuantity = new BigNumber(opts.quantity);
+        const positionQuantity = new BigNumber(activePosition.quantity).shiftedBy(-18);
+        if (
+          !requestedQuantity.isFinite() ||
+          requestedQuantity.lte(0) ||
+          requestedQuantity.gt(positionQuantity)
+        ) {
+          return handleError(
+            `--quantity must be greater than 0 and no more than the position quantity (${positionQuantity.toFixed()}).`
+          );
+        }
+
+        const requestedLeverage = new BigNumber(opts.leverage);
+        const positionLeverage = new BigNumber(activePosition.leverage).shiftedBy(-18);
+        if (!requestedLeverage.isFinite() || !requestedLeverage.eq(positionLeverage)) {
+          return handleError(
+            `--leverage must match the position leverage (${positionLeverage.toFixed()}).`
+          );
+        }
+
+        // Editing a plan requires its existing ID. Resolve it automatically for the
+        // position-wide TP/SL pair so repeating this command updates instead of duplicates.
+        if (shouldFindTpPlan || shouldFindSlPlan) {
+          const positionId = activePosition.id ?? activePosition.positionId;
+          if (positionId === undefined || positionId === null) {
+            return handleError(`Position ID missing for ${symbol}.`);
+          }
+
+          const plansResult = await sdk.getPositionTpSl(positionId, "position", opts.vault);
+          if (!plansResult.status) {
+            return handleError(plansResult.error || "Failed to fetch existing TP/SL orders");
+          }
+
+          const findExistingPlanId = (planOrderType: "takeProfit" | "stopLoss") => {
+            const matches = (plansResult.data || []).filter(
+              (order) => String(order.planOrderType).toLowerCase() === planOrderType.toLowerCase()
+            );
+            if (matches.length > 1) {
+              throw new Error(
+                `Multiple ${planOrderType} plans found; use --${
+                  planOrderType === "takeProfit" ? "tp" : "sl"
+                }-plan-id to choose one.`
+              );
+            }
+            if (!matches.length) return undefined;
+            const planId =
+              planOrderType === "takeProfit" ? matches[0].tpPlanId : matches[0].slPlanId;
+            if (planId === undefined || planId === null) {
+              throw new Error(`${planOrderType} plan is missing its editable plan ID.`);
+            }
+            return planId;
+          };
+
+          if (shouldFindTpPlan) tpPlanId = findExistingPlanId("takeProfit");
+          if (shouldFindSlPlan) slPlanId = findExistingPlanId("stopLoss");
+        }
 
         const params: any = {
           symbol,
           market: perpId,
+          ...(opts.vault ? { creator: opts.vault } : {}),
           side,
           isLong,
           quantity: opts.quantity,
@@ -212,6 +327,7 @@ export function registerPositionCommands(program: Command) {
             triggerPrice: opts.tpTrigger,
             orderType: opts.tpType?.toUpperCase() === "LIMIT" ? OrderType.LIMIT : OrderType.MARKET,
             ...(opts.tpPrice ? { orderPrice: opts.tpPrice } : {}),
+            ...(tpPlanId !== undefined ? { planId: tpPlanId } : {}),
             tpslType: "position" as const,
           };
         }
@@ -221,6 +337,7 @@ export function registerPositionCommands(program: Command) {
             triggerPrice: opts.slTrigger,
             orderType: opts.slType?.toUpperCase() === "LIMIT" ? OrderType.LIMIT : OrderType.MARKET,
             ...(opts.slPrice ? { orderPrice: opts.slPrice } : {}),
+            ...(slPlanId !== undefined ? { planId: slPlanId } : {}),
             tpslType: "position" as const,
           };
         }

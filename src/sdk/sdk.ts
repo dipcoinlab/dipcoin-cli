@@ -843,6 +843,7 @@ export class DipCoinPerpSDK {
       const {
         symbol,
         market,
+        creator,
         side,
         isLong,
         leverage,
@@ -854,6 +855,7 @@ export class DipCoinPerpSDK {
         tp,
         sl,
       } = params;
+      const orderCreator = creator || this.walletAddress;
 
       if (!this.isPositiveNumber(quantity)) {
         return {
@@ -881,7 +883,7 @@ export class DipCoinPerpSDK {
         symbol,
         side,
         leverage: leverageWei,
-        creator: this.walletAddress,
+        creator: orderCreator,
       };
 
       const sendPlanCloseRequest = async (payload: Record<string, any>) => {
@@ -925,7 +927,7 @@ export class DipCoinPerpSDK {
 
         const tpOrder = {
           market,
-          creator: this.walletAddress,
+          creator: orderCreator,
           isLong: !isLong,
           reduceOnly,
           postOnly,
@@ -981,7 +983,7 @@ export class DipCoinPerpSDK {
 
         const slOrder = {
           market,
-          creator: this.walletAddress,
+          creator: orderCreator,
           isLong: !isLong,
           reduceOnly,
           postOnly,
@@ -1065,7 +1067,8 @@ export class DipCoinPerpSDK {
    */
   async getPositionTpSl(
     positionId: string | number,
-    tpslType: TpSlMode = "normal"
+    tpslType: TpSlMode = "normal",
+    parentAddress?: string
   ): Promise<SDKResponse<PositionTpSlOrder[]>> {
     try {
       const authResult = await this.authenticate();
@@ -1079,6 +1082,7 @@ export class DipCoinPerpSDK {
       const params = {
         positionId,
         tpslType,
+        ...(parentAddress ? { parentAddress } : {}),
       };
 
       let response = await this.httpClient.get<PositionTpSlOrder[]>(

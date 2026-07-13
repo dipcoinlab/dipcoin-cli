@@ -181,6 +181,10 @@ dipcoin-cli position tpsl <symbol> --side <buy|sell> --quantity <q> --leverage <
 dipcoin-cli position tpsl <symbol> --side sell --quantity 0.01 --leverage 10 \
   --tp-trigger 105000 --tp-type limit --tp-price 105000
 
+# Set or edit TP/SL on a vault position. Existing plan IDs are discovered automatically.
+dipcoin-cli position tpsl BTC --side sell --quantity 0.01 --leverage 10 \
+  --vault <vaultId> --tp-trigger 105000 --sl-trigger 90000
+
 # Close positions — CLI figures out side & qty
 dipcoin-cli position close BTC                  # close 100% of BTC position
 dipcoin-cli position close BTC --percent 50     # close half

@@ -433,6 +433,8 @@ export interface PlaceTpSlOrdersParams {
   symbol: string;
   /** Market ID (PerpetualID) */
   market: string;
+  /** Order owner - set to a vault object ID when managing a vault position */
+  creator?: string;
   /** Closing side (BUY to close short, SELL to close long) */
   side: OrderSide;
   /** Whether the existing position is long */
@@ -496,6 +498,8 @@ export interface PositionTpSlOrder {
 export interface PositionTpSlQueryParams {
   positionId: string | number;
   tpslType?: TpSlMode;
+  /** Account that owns the position (wallet or vault object ID) */
+  parentAddress?: string;
 }
 
 /**

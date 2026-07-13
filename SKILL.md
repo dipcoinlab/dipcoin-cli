@@ -245,6 +245,10 @@ dipcoin-cli position tpsl BTC --side sell --quantity 0.01 --leverage 10 \
 dipcoin-cli position tpsl BTC --side sell --quantity 0.01 --leverage 10 \
   --tp-trigger 105000 --tp-type limit --tp-price 105000
 
+# Set or edit TP/SL on a vault position. Existing plan IDs are discovered automatically.
+dipcoin-cli position tpsl BTC --side sell --quantity 0.01 --leverage 10 \
+  --vault <vaultId> --tp-trigger 105000 --sl-trigger 90000
+
 # Add/remove margin on a position
 dipcoin-cli position margin add BTC 5
 dipcoin-cli position margin remove BTC 2
